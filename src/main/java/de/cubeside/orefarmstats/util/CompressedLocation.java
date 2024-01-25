@@ -3,6 +3,9 @@ package de.cubeside.orefarmstats.util;
 import org.bukkit.Location;
 import org.bukkit.util.BlockVector;
 
+/**
+ * In bytes: xxxzzzyy
+ */
 public final class CompressedLocation {
     public static final int THREE_BYTE_INT_BITS = 24;
     public static final int THREE_BYTE_INT_MASK = 0xffffff;
@@ -34,14 +37,9 @@ public final class CompressedLocation {
     }
 
     public static BlockVector toBlockVector(long compressedLocation) {
-        int x = (int) ((compressedLocation >> (THREE_BYTE_INT_BITS + TWO_BYTE_INT_BITS)) & THREE_BYTE_INT_MASK);
-        x = (x << (Integer.SIZE - THREE_BYTE_INT_BITS)) >> (Integer.SIZE - THREE_BYTE_INT_BITS);
-
-        int z = (int) ((compressedLocation >> (TWO_BYTE_INT_BITS)) & THREE_BYTE_INT_MASK);
-        z = (z << (Integer.SIZE - THREE_BYTE_INT_BITS)) >> (Integer.SIZE - THREE_BYTE_INT_BITS);
-
-        int y = (int) ((compressedLocation) & TWO_BYTE_INT_MASK);
-        y = (y << (Integer.SIZE - TWO_BYTE_INT_BITS)) >> (Integer.SIZE - TWO_BYTE_INT_BITS);
+        int x = ((int) (compressedLocation >> Integer.SIZE)) >> (Integer.SIZE - THREE_BYTE_INT_BITS);
+        int z = ((int) (compressedLocation >> Integer.SIZE - THREE_BYTE_INT_BITS)) >> (Integer.SIZE - THREE_BYTE_INT_BITS);
+        int y = ((int) (compressedLocation << (Integer.SIZE - TWO_BYTE_INT_BITS))) >> (Integer.SIZE - TWO_BYTE_INT_BITS);
 
         return new BlockVector(x, y, z);
     }
