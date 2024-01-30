@@ -5,6 +5,7 @@ import de.iani.cubesidestats.api.PlayerStatistics;
 import de.iani.cubesidestats.api.StatisticKey;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -20,6 +21,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
     private StatisticKey oreStatsKey;
+    private Set<String> loggedWorlds;
 
     @Override
     public void onEnable() {
@@ -46,6 +48,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         oreMaterials.add(Material.ANCIENT_DEBRIS);
 
         getDataFolder().mkdirs();
+        saveDefaultConfig();
+        HashSet<String> loggedWorldsList = new HashSet<>(getConfig().getStringList("worlds"));
+        boolean allWorldsLogged = loggedWorldsList.remove("*");
+        loggedWorlds = allWorldsLogged ? null : Set.of(loggedWorldsList.toArray(new String[loggedWorldsList.size()]));
+
         for (String fileName : getDataFolder().list((dir, name) -> name.endsWith(".dat"))) {
             String worldName = fileName.substring(0, fileName.length() - 4);
             getKnownWorldOreLocations(worldName);
@@ -101,5 +108,9 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(oreStatsKey, count);
+    }
+
+    public boolean isWorldLogged(World world) {
+        return loggedWorlds == null || loggedWorlds.contains(world.getName());
     }
 }

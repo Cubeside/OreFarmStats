@@ -19,7 +19,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent e) {
-        if (plugin.isOre(e.getBlock().getType())) {
+        if (plugin.isOre(e.getBlock().getType()) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
             if (plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc)) {
                 // if (plugin.isActive()) {
@@ -31,7 +31,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
-        if (plugin.isOre(e.getBlock().getType())) {
+        if (plugin.isOre(e.getBlock().getType()) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
             plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
         }
@@ -40,7 +40,7 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent e) {
         for (Block b : e.getBlocks()) {
-            if (plugin.isOre(b.getType())) {
+            if (plugin.isOre(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
@@ -51,7 +51,7 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent e) {
         for (Block b : e.getBlocks()) {
-            if (plugin.isOre(b.getType())) {
+            if (plugin.isOre(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
