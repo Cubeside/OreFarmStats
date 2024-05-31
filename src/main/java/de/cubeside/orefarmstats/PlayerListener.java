@@ -2,6 +2,7 @@ package de.cubeside.orefarmstats;
 
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -9,6 +10,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.ItemStack;
 
 public class PlayerListener implements Listener {
     private final OreFarmStatsPlugin plugin;
@@ -27,6 +29,17 @@ public class PlayerListener implements Listener {
                 // }
             }
         }
+        if (plugin.isLog(e.getBlock().getType())) {
+            Location loc = e.getBlock().getLocation();
+            if (!plugin.getKnownWorldLogLocations(loc.getWorld()).remove(loc)) {
+                // if (plugin.isActive()) {
+                ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
+                if (tool == null || tool.getEnchantmentLevel(Enchantment.EFFICIENCY) <= 5) {
+                    plugin.addLogFarmed(e.getPlayer());
+                }
+                // }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -34,6 +47,10 @@ public class PlayerListener implements Listener {
         if (plugin.isOre(e.getBlock().getType()) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
             plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
+        }
+        if (plugin.isLog(e.getBlock().getType())) {
+            Location loc = e.getBlock().getLocation();
+            plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
         }
     }
 
@@ -45,6 +62,11 @@ public class PlayerListener implements Listener {
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
             }
+            if (plugin.isLog(e.getBlock().getType())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
+            }
         }
     }
 
@@ -55,6 +77,11 @@ public class PlayerListener implements Listener {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
+            }
+            if (plugin.isLog(e.getBlock().getType())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
             }
         }
     }

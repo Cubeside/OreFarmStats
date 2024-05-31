@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -17,10 +18,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     private final HashMap<String, KnownWorldOreLocations> prevoiusLocations = new HashMap<>();
     private final HashSet<Material> oreMaterials = new HashSet<>();
+    private final HashSet<Material> logMaterials = new HashSet<>();
+    private final HashMap<String, KnownWorldOreLocations> prevoiusLogLocations = new HashMap<>();
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
     private StatisticKey oreStatsKey;
+    private StatisticKey logStatsKey;
     private Set<String> loggedWorlds;
 
     @Override
@@ -47,16 +51,18 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         oreMaterials.add(Material.NETHER_GOLD_ORE);
         oreMaterials.add(Material.ANCIENT_DEBRIS);
 
+        logMaterials.addAll(Tag.LOGS.getValues());
+
         getDataFolder().mkdirs();
         saveDefaultConfig();
         HashSet<String> loggedWorldsList = new HashSet<>(getConfig().getStringList("worlds"));
         boolean allWorldsLogged = loggedWorldsList.remove("*");
         loggedWorlds = allWorldsLogged ? null : Set.of(loggedWorldsList.toArray(new String[loggedWorldsList.size()]));
 
-        for (String fileName : getDataFolder().list((dir, name) -> name.endsWith(".dat"))) {
-            String worldName = fileName.substring(0, fileName.length() - 4);
-            getKnownWorldOreLocations(worldName);
-        }
+        // for (String fileName : getDataFolder().list((dir, name) -> name.endsWith(".dat"))) {
+        // String worldName = fileName.substring(0, fileName.length() - 4);
+        // getKnownWorldOreLocations(worldName);
+        // }
 
         // SimpleDateFormat timeParser = new SimpleDateFormat("d.M.y H:m:s", Locale.GERMANY);
         // try {
@@ -72,6 +78,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         oreStatsKey.setDisplayName("Erze gemint");
         oreStatsKey.setIsMonthlyStats(true);
 
+        logStatsKey = cubesideStatistics.getStatisticKey("logstats");
+        logStatsKey.setDisplayName("Holz gefarmt");
+        logStatsKey.setIsMonthlyStats(true);
+
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
     }
 
@@ -81,6 +91,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             e.close();
         }
         prevoiusLocations.clear();
+        for (KnownWorldOreLocations e : prevoiusLogLocations.values()) {
+            e.close();
+        }
+        prevoiusLogLocations.clear();
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(World world) {
@@ -112,5 +126,27 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isWorldLogged(World world) {
         return loggedWorlds == null || loggedWorlds.contains(world.getName());
+    }
+
+    public boolean isLog(Material type) {
+        return logMaterials.contains(type);
+    }
+
+    public KnownWorldOreLocations getKnownWorldLogLocations(World world) {
+        return getKnownWorldLogLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldLogLocations(String world) {
+        return prevoiusLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
+    }
+
+    public void addLogFarmed(Player p) {
+        addLogFarmed(p, 1);
+    }
+
+    public void addLogFarmed(Player p, int count) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(logStatsKey, count);
     }
 }

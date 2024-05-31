@@ -22,17 +22,29 @@ public class KnownWorldOreLocations {
     private final LongOpenHashSet knownLocations;
 
     public KnownWorldOreLocations(OreFarmStatsPlugin plugin, String world) {
-        plugin.getLogger().info("Loading locations for world " + world);
+        this(plugin, world, null);
+    }
+
+    public KnownWorldOreLocations(OreFarmStatsPlugin plugin, String world, String filePrefix) {
+        if (filePrefix == null) {
+            filePrefix = "";
+        }
+        plugin.getLogger().info("Loading " + filePrefix + " locations for world " + world);
+        if (!filePrefix.isEmpty()) {
+            filePrefix = filePrefix + ".";
+        }
         this.plugin = plugin;
         plugin.getDataFolder().mkdirs();
         knownLocations = new LongOpenHashSet();
-        file = new File(plugin.getDataFolder(), world + ".dat");
+        file = new File(plugin.getDataFolder(), filePrefix + world + ".dat");
         if (file.isFile()) {
             try (DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
                 while (true) {
                     try {
                         long l = dis.readLong();
-                        knownLocations.add(l);
+                        if (!knownLocations.add(l)) {
+                            knownLocations.remove(l);
+                        }
                     } catch (EOFException e) {
                         break;
                     }
@@ -52,6 +64,19 @@ public class KnownWorldOreLocations {
     public boolean add(Location loc) {
         long compressed = CompressedLocation.fromLocation(loc);
         if (knownLocations.add(compressed)) {
+            try {
+                outStream.writeLong(compressed);
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not add location to file", e);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean remove(Location loc) {
+        long compressed = CompressedLocation.fromLocation(loc);
+        if (knownLocations.remove(compressed)) {
             try {
                 outStream.writeLong(compressed);
             } catch (IOException e) {
