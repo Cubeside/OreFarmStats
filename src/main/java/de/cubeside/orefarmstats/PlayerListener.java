@@ -3,6 +3,7 @@ package de.cubeside.orefarmstats;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -10,6 +11,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.inventory.ItemStack;
 
 public class PlayerListener implements Listener {
@@ -83,6 +85,17 @@ public class PlayerListener implements Listener {
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
             }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonRetract(EntityBreedEvent e) {
+        if (e.getBreeder() instanceof Player player) {
+            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+                if (e.getEntity().isValid()) {
+                    plugin.addAnimalBreed(player);
+                }
+            }, 1L);
         }
     }
 }

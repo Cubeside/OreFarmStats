@@ -25,6 +25,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
     private StatisticKey oreStatsKey;
     private StatisticKey logStatsKey;
+    private StatisticKey breedStatsKey;
     private Set<String> loggedWorlds;
 
     @Override
@@ -81,6 +82,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         logStatsKey = cubesideStatistics.getStatisticKey("logstats");
         logStatsKey.setDisplayName("Holz gefarmt");
         logStatsKey.setIsMonthlyStats(true);
+
+        breedStatsKey = cubesideStatistics.getStatisticKey("breedstats");
+        breedStatsKey.setDisplayName("Tiere vermehrt");
+        breedStatsKey.setIsMonthlyStats(true);
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
     }
@@ -148,5 +153,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(logStatsKey, count);
+    }
+
+    public void addAnimalBreed(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(breedStatsKey, 1);
     }
 }
