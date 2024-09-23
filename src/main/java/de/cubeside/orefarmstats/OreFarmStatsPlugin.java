@@ -5,8 +5,11 @@ import de.iani.cubesidestats.api.PlayerStatistics;
 import de.iani.cubesidestats.api.StatisticKey;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
@@ -19,6 +22,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashMap<String, KnownWorldOreLocations> prevoiusLocations = new HashMap<>();
     private final HashSet<Material> oreMaterials = new HashSet<>();
     private final HashSet<Material> logMaterials = new HashSet<>();
+    private final HashSet<Material> veggiesMaterials = new HashSet<>();
+    private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> prevoiusLogLocations = new HashMap<>();
     // private long startTime;
     // private long endTime;
@@ -26,6 +31,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey oreStatsKey;
     private StatisticKey logStatsKey;
     private StatisticKey breedStatsKey;
+    private StatisticKey veggieStatsKey;
     private Set<String> loggedWorlds;
 
     @Override
@@ -53,6 +59,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         oreMaterials.add(Material.ANCIENT_DEBRIS);
 
         logMaterials.addAll(Tag.LOGS.getValues());
+
+        veggiesMaterials.add(Material.POTATOES);
+        veggiesMaterials.add(Material.CARROTS);
+        veggiesMaterials.add(Material.BEETROOTS);
+        veggiesMaterials.add(Material.WHEAT);
 
         getDataFolder().mkdirs();
         saveDefaultConfig();
@@ -86,6 +97,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         breedStatsKey = cubesideStatistics.getStatisticKey("breedstats");
         breedStatsKey.setDisplayName("Tiere vermehrt");
         breedStatsKey.setIsMonthlyStats(true);
+
+        veggieStatsKey = cubesideStatistics.getStatisticKey("veggiestats");
+        veggieStatsKey.setDisplayName("Gemüse gefarmt");
+        veggieStatsKey.setIsMonthlyStats(true);
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
     }
@@ -159,5 +174,27 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(breedStatsKey, 1);
+    }
+
+    public void addVeggie(Player player, Location location) {
+        UUID uuid = player.getUniqueId();
+        veggieLocationsPlayer.putIfAbsent(uuid, new LinkedList<>());
+        LinkedList<Location> locations = veggieLocationsPlayer.get(uuid);
+        if (locations.contains(location)) {
+            return;
+        }
+
+        locations.addFirst(location);
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
+        playerStats.increaseScore(veggieStatsKey, 1);
+
+        if (locations.size() > 50) {
+            locations.removeLast();
+        }
+        veggieLocationsPlayer.put(uuid, locations);
+    }
+
+    public boolean isVeggie(Material material) {
+        return veggiesMaterials.contains(material);
     }
 }

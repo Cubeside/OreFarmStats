@@ -2,6 +2,7 @@ package de.cubeside.orefarmstats;
 
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,6 +41,14 @@ public class PlayerListener implements Listener {
                     plugin.addLogFarmed(e.getPlayer());
                 }
                 // }
+            }
+        }
+
+        if (plugin.isVeggie(e.getBlock().getType())) {
+            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+                if (ageable.getAge() == ageable.getMaximumAge()) {
+                    plugin.addVeggie(e.getPlayer(), e.getBlock().getLocation());
+                }
             }
         }
     }
