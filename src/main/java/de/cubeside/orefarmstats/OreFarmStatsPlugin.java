@@ -64,6 +64,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         veggiesMaterials.add(Material.CARROTS);
         veggiesMaterials.add(Material.BEETROOTS);
         veggiesMaterials.add(Material.WHEAT);
+        veggiesMaterials.add(Material.NETHER_WART);
+        veggiesMaterials.add(Material.COCOA);
 
         getDataFolder().mkdirs();
         saveDefaultConfig();
