@@ -21,6 +21,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     private final HashMap<String, KnownWorldOreLocations> prevoiusLocations = new HashMap<>();
     private final HashSet<Material> oreMaterials = new HashSet<>();
+    private final HashSet<Material> deepOreMaterials = new HashSet<>();
     private final HashSet<Material> logMaterials = new HashSet<>();
     private final HashSet<Material> veggiesMaterials = new HashSet<>();
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
@@ -29,6 +30,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
     private StatisticKey oreStatsKey;
+    private StatisticKey deepOreStatsKey;
     private StatisticKey logStatsKey;
     private StatisticKey breedStatsKey;
     private StatisticKey veggieStatsKey;
@@ -36,6 +38,17 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        deepOreMaterials.add(Material.DEEPSLATE_COAL_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_DIAMOND_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_EMERALD_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_GOLD_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_IRON_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_LAPIS_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_REDSTONE_ORE);
+        deepOreMaterials.add(Material.ANCIENT_DEBRIS);
+
+        oreMaterials.addAll(deepOreMaterials);
         oreMaterials.add(Material.COAL_ORE);
         oreMaterials.add(Material.COPPER_ORE);
         oreMaterials.add(Material.DIAMOND_ORE);
@@ -44,19 +57,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         oreMaterials.add(Material.IRON_ORE);
         oreMaterials.add(Material.LAPIS_ORE);
         oreMaterials.add(Material.REDSTONE_ORE);
-
-        oreMaterials.add(Material.DEEPSLATE_COAL_ORE);
-        oreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
-        oreMaterials.add(Material.DEEPSLATE_DIAMOND_ORE);
-        oreMaterials.add(Material.DEEPSLATE_EMERALD_ORE);
-        oreMaterials.add(Material.DEEPSLATE_GOLD_ORE);
-        oreMaterials.add(Material.DEEPSLATE_IRON_ORE);
-        oreMaterials.add(Material.DEEPSLATE_LAPIS_ORE);
-        oreMaterials.add(Material.DEEPSLATE_REDSTONE_ORE);
-
         oreMaterials.add(Material.NETHER_QUARTZ_ORE);
         oreMaterials.add(Material.NETHER_GOLD_ORE);
-        oreMaterials.add(Material.ANCIENT_DEBRIS);
 
         logMaterials.addAll(Tag.LOGS.getValues());
 
@@ -88,19 +90,23 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         // }
 
         cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
-        oreStatsKey = cubesideStatistics.getStatisticKey("orestats");
+        oreStatsKey = cubesideStatistics.getStatisticKey("farmstats.ore");
         oreStatsKey.setDisplayName("Erze gemint");
         oreStatsKey.setIsMonthlyStats(true);
 
-        logStatsKey = cubesideStatistics.getStatisticKey("logstats");
+        deepOreStatsKey = cubesideStatistics.getStatisticKey("farmstats.deepore");
+        deepOreStatsKey.setDisplayName("Tiefenerze gemint");
+        deepOreStatsKey.setIsMonthlyStats(true);
+
+        logStatsKey = cubesideStatistics.getStatisticKey("farmstats.log");
         logStatsKey.setDisplayName("Holz gefarmt");
         logStatsKey.setIsMonthlyStats(true);
 
-        breedStatsKey = cubesideStatistics.getStatisticKey("breedstats");
+        breedStatsKey = cubesideStatistics.getStatisticKey("farmstats.breeding");
         breedStatsKey.setDisplayName("Tiere vermehrt");
         breedStatsKey.setIsMonthlyStats(true);
 
-        veggieStatsKey = cubesideStatistics.getStatisticKey("veggiestats");
+        veggieStatsKey = cubesideStatistics.getStatisticKey("farmstats.plants");
         veggieStatsKey.setDisplayName("Gemüse gefarmt");
         veggieStatsKey.setIsMonthlyStats(true);
 
@@ -131,27 +137,21 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return oreMaterials.contains(type);
     }
 
+    public boolean isDeepOre(Material type) {
+        return deepOreMaterials.contains(type);
+    }
+
+    public boolean isLog(Material type) {
+        return logMaterials.contains(type);
+    }
+
     // public boolean isActive() {
     // long now = System.currentTimeMillis();
     // return now >= startTime && now < endTime;
     // }
 
-    public void addOreMined(Player p) {
-        addOreMined(p, 1);
-    }
-
-    public void addOreMined(Player p, int count) {
-        UUID playerId = p.getUniqueId();
-        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
-        playerStats.increaseScore(oreStatsKey, count);
-    }
-
     public boolean isWorldLogged(World world) {
         return loggedWorlds == null || loggedWorlds.contains(world.getName());
-    }
-
-    public boolean isLog(Material type) {
-        return logMaterials.contains(type);
     }
 
     public KnownWorldOreLocations getKnownWorldLogLocations(World world) {
@@ -162,14 +162,22 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return prevoiusLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
     }
 
-    public void addLogFarmed(Player p) {
-        addLogFarmed(p, 1);
-    }
-
-    public void addLogFarmed(Player p, int count) {
+    public void addOreMined(Player p) {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
-        playerStats.increaseScore(logStatsKey, count);
+        playerStats.increaseScore(oreStatsKey, 1);
+    }
+
+    public void addDeepOreMined(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(deepOreStatsKey, 1);
+    }
+
+    public void addLogFarmed(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(logStatsKey, 1);
     }
 
     public void addAnimalBreed(Player p) {

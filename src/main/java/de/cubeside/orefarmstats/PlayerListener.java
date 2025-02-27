@@ -29,6 +29,9 @@ public class PlayerListener implements Listener {
             if (plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc)) {
                 // if (plugin.isActive()) {
                 plugin.addOreMined(e.getPlayer());
+                if (plugin.isDeepOre(e.getBlock().getType())) {
+                    plugin.addDeepOreMined(e.getPlayer());
+                }
                 // }
             }
         }
