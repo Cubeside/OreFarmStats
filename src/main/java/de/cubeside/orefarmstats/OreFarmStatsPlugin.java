@@ -19,13 +19,15 @@ import org.jetbrains.annotations.Nullable;
 
 public class OreFarmStatsPlugin extends JavaPlugin {
 
-    private final HashMap<String, KnownWorldOreLocations> prevoiusLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldOreLocations> previousLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldMultiLocations> previousBuddelLocations = new HashMap<>();
     private final HashSet<Material> oreMaterials = new HashSet<>();
     private final HashSet<Material> deepOreMaterials = new HashSet<>();
     private final HashSet<Material> logMaterials = new HashSet<>();
+    private final HashSet<Material> buddlerMaterials = new HashSet<>();
     private final HashSet<Material> veggiesMaterials = new HashSet<>();
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
-    private final HashMap<String, KnownWorldOreLocations> prevoiusLogLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
@@ -34,6 +36,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey logStatsKey;
     private StatisticKey breedStatsKey;
     private StatisticKey veggieStatsKey;
+    private StatisticKey buddelStatsKey;
     private Set<String> loggedWorlds;
 
     @Override
@@ -59,6 +62,26 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         oreMaterials.add(Material.REDSTONE_ORE);
         oreMaterials.add(Material.NETHER_QUARTZ_ORE);
         oreMaterials.add(Material.NETHER_GOLD_ORE);
+
+        buddlerMaterials.add(Material.SOUL_SAND);
+        buddlerMaterials.add(Material.SOUL_SOIL);
+        buddlerMaterials.add(Material.SAND);
+        buddlerMaterials.add(Material.RED_SAND);
+        buddlerMaterials.add(Material.DIRT);
+        buddlerMaterials.add(Material.GRASS_BLOCK);
+        buddlerMaterials.add(Material.GRAVEL);
+        buddlerMaterials.add(Material.MUD);
+        buddlerMaterials.add(Material.MUDDY_MANGROVE_ROOTS);
+        buddlerMaterials.add(Material.PODZOL);
+        buddlerMaterials.add(Material.MYCELIUM);
+        buddlerMaterials.add(Material.COARSE_DIRT);
+        buddlerMaterials.add(Material.ROOTED_DIRT);
+        buddlerMaterials.add(Material.SNOW);
+        buddlerMaterials.add(Material.SNOW_BLOCK);
+        buddlerMaterials.add(Material.CLAY);
+        buddlerMaterials.add(Material.DIRT_PATH);
+        buddlerMaterials.add(Material.FARMLAND);
+        buddlerMaterials.add(Material.CRIMSON_NYLIUM);
 
         logMaterials.addAll(Tag.LOGS.getValues());
 
@@ -98,6 +121,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         deepOreStatsKey.setDisplayName("Tiefenerze gemint");
         deepOreStatsKey.setIsMonthlyStats(true);
 
+        buddelStatsKey = cubesideStatistics.getStatisticKey("farmstats.buddler");
+        buddelStatsKey.setDisplayName("Weggebuddelt");
+        buddelStatsKey.setIsMonthlyStats(true);
+
         logStatsKey = cubesideStatistics.getStatisticKey("farmstats.log");
         logStatsKey.setDisplayName("Holz gefarmt");
         logStatsKey.setIsMonthlyStats(true);
@@ -115,14 +142,18 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        for (KnownWorldOreLocations e : prevoiusLocations.values()) {
+        for (KnownWorldOreLocations e : previousLocations.values()) {
             e.close();
         }
-        prevoiusLocations.clear();
-        for (KnownWorldOreLocations e : prevoiusLogLocations.values()) {
+        previousLocations.clear();
+        for (KnownWorldOreLocations e : previousLogLocations.values()) {
             e.close();
         }
-        prevoiusLogLocations.clear();
+        previousLogLocations.clear();
+        for (KnownWorldMultiLocations e : previousBuddelLocations.values()) {
+            e.close();
+        }
+        previousBuddelLocations.clear();
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(World world) {
@@ -130,7 +161,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(String world) {
-        return prevoiusLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2));
+        return previousLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2));
     }
 
     public boolean isOre(Material type) {
@@ -143,6 +174,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isLog(Material type) {
         return logMaterials.contains(type);
+    }
+
+    public boolean isBuddelzeug(Material type) {
+        return buddlerMaterials.contains(type);
     }
 
     // public boolean isActive() {
@@ -159,13 +194,19 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public KnownWorldOreLocations getKnownWorldLogLocations(String world) {
-        return prevoiusLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
+        return previousLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
     }
 
     public void addOreMined(Player p) {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(oreStatsKey, 1);
+    }
+
+    public void addBuddeled(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(buddelStatsKey, 1);
     }
 
     public void addDeepOreMined(Player p) {
@@ -206,5 +247,9 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isVeggie(Material material) {
         return veggiesMaterials.contains(material);
+    }
+
+    public KnownWorldMultiLocations getKnownWorldBuddelLocations(World world) {
+        return previousBuddelLocations.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
     }
 }

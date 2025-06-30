@@ -1,6 +1,7 @@
 package de.cubeside.orefarmstats;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
@@ -24,30 +25,34 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent e) {
-        if (plugin.isOre(e.getBlock().getType()) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+        Material material = e.getBlock().getType();
+
+        if (plugin.isOre(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
             if (plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc)) {
-                // if (plugin.isActive()) {
                 plugin.addOreMined(e.getPlayer());
-                if (plugin.isDeepOre(e.getBlock().getType())) {
+                if (plugin.isDeepOre(material)) {
                     plugin.addDeepOreMined(e.getPlayer());
                 }
-                // }
             }
         }
-        if (plugin.isLog(e.getBlock().getType())) {
+        if (plugin.isBuddelzeug(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            if (plugin.getKnownWorldBuddelLocations(loc.getWorld()).add(loc)) {
+                plugin.addBuddeled(e.getPlayer());
+            }
+        }
+        if (plugin.isLog(material)) {
             Location loc = e.getBlock().getLocation();
             if (!plugin.getKnownWorldLogLocations(loc.getWorld()).remove(loc)) {
-                // if (plugin.isActive()) {
                 ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
                 if (tool == null || tool.getEnchantmentLevel(Enchantment.EFFICIENCY) <= 5) {
                     plugin.addLogFarmed(e.getPlayer());
                 }
-                // }
             }
         }
 
-        if (plugin.isVeggie(e.getBlock().getType())) {
+        if (plugin.isVeggie(material)) {
             if (e.getBlock().getBlockData() instanceof Ageable ageable) {
                 if (ageable.getAge() == ageable.getMaximumAge()) {
                     plugin.addVeggie(e.getPlayer(), e.getBlock().getLocation());
