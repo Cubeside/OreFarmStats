@@ -81,7 +81,6 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         buddlerMaterials.add(Material.CLAY);
         buddlerMaterials.add(Material.DIRT_PATH);
         buddlerMaterials.add(Material.FARMLAND);
-        buddlerMaterials.add(Material.CRIMSON_NYLIUM);
 
         logMaterials.addAll(Tag.LOGS.getValues());
 
