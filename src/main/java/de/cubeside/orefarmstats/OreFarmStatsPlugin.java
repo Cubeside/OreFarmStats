@@ -3,6 +3,7 @@ package de.cubeside.orefarmstats;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
 import de.iani.cubesidestats.api.PlayerStatistics;
 import de.iani.cubesidestats.api.StatisticKey;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -28,6 +29,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashSet<Material> veggiesMaterials = new HashSet<>();
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
@@ -38,6 +40,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey veggieStatsKey;
     private StatisticKey buddelStatsKey;
     private Set<String> loggedWorlds;
+
+    private long eventStartMillis;
+    private long eventEndMillis;
+    private StatisticKey eventSchweinereitenStatsKey;
 
     @Override
     public void onEnable() {
@@ -136,6 +142,16 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         veggieStatsKey.setDisplayName("Gemüse gefarmt");
         veggieStatsKey.setIsMonthlyStats(true);
 
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.MILLISECOND, 0);
+        c.set(2025, Calendar.AUGUST, 10, 0, 0, 0);
+        eventStartMillis = c.getTimeInMillis();
+        c.set(2025, Calendar.AUGUST, 17, 0, 0, 0);
+        eventEndMillis = c.getTimeInMillis();
+
+        eventSchweinereitenStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.schweinereiten");
+        eventSchweinereitenStatsKey.setDisplayName("Schweinereiten");
+
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
     }
 
@@ -145,14 +161,21 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             e.close();
         }
         previousLocations.clear();
+
         for (KnownWorldOreLocations e : previousLogLocations.values()) {
             e.close();
         }
         previousLogLocations.clear();
+
         for (KnownWorldMultiLocations e : previousBuddelLocations.values()) {
             e.close();
         }
         previousBuddelLocations.clear();
+
+        for (KnownWorldPlayerChunks e : schweinereiterChunks.values()) {
+            e.close();
+        }
+        schweinereiterChunks.clear();
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(World world) {
@@ -250,5 +273,24 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public KnownWorldMultiLocations getKnownWorldBuddelLocations(World world) {
         return previousBuddelLocations.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
+    }
+
+    public KnownWorldPlayerChunks getKnownWorldSchweinereiterLocations(World world) {
+        return schweinereiterChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
+    }
+
+    public boolean isNowInEvent() {
+        long now = System.currentTimeMillis();
+        return now >= eventStartMillis && now < eventEndMillis;
+    }
+
+    public StatisticKey getEventSchweinereitenStatsKey() {
+        return eventSchweinereitenStatsKey;
+    }
+
+    public void addSchweinereitenScore(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(eventSchweinereitenStatsKey, 1);
     }
 }

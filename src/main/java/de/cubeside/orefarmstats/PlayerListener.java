@@ -2,9 +2,11 @@ package de.cubeside.orefarmstats;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -21,6 +23,7 @@ public class PlayerListener implements Listener {
 
     public PlayerListener(OreFarmStatsPlugin plugin) {
         this.plugin = plugin;
+        plugin.getServer().getScheduler().runTaskTimer(plugin, this::onTick, 1, 1);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -113,6 +116,18 @@ public class PlayerListener implements Listener {
                     plugin.addAnimalBreed(player);
                 }
             }, 1L);
+        }
+    }
+
+    public void onTick() {
+        for (Player p : plugin.getServer().getOnlinePlayers()) {
+            if (p.getVehicle() instanceof Pig && p.getWorld().getEnvironment() == Environment.NETHER && plugin.isNowInEvent()) {
+                Location loc = p.getLocation();
+                if (plugin.getKnownWorldSchweinereiterLocations(loc.getWorld()).add(p.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                    // plugin.getLogger().info("Player " + p.getName() + " moved on pig");
+                    plugin.addSchweinereitenScore(p);
+                }
+            }
         }
     }
 }
