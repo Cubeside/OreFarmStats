@@ -16,6 +16,8 @@ import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityBreedEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 
 public class PlayerListener implements Listener {
@@ -117,6 +119,31 @@ public class PlayerListener implements Listener {
                 }
             }, 1L);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        if (!plugin.isNowInEvent()) {
+            return;
+        }
+        if (!plugin.isFireDamage(event.getCause())) {
+            return;
+        }
+        plugin.addOlympicTorchScore(player, (int) Math.floor(event.getFinalDamage()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        if (!plugin.isNowInEvent()) {
+            return;
+        }
+        if (!plugin.isFireDamage(event.getDamageSource().getDamageType())) {
+            return;
+        }
+        plugin.addOlympicTorchScore(event.getPlayer(), -50);
     }
 
     public void onTick() {

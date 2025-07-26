@@ -4,6 +4,7 @@ import de.iani.cubesidestats.api.CubesideStatisticsAPI;
 import de.iani.cubesidestats.api.PlayerStatistics;
 import de.iani.cubesidestats.api.StatisticKey;
 import java.util.Calendar;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -14,7 +15,9 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
+import org.bukkit.damage.DamageType;
 import org.bukkit.entity.Player;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,6 +33,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
+    private final Set<DamageCause> fireDamageCauses = EnumSet.of(DamageCause.CAMPFIRE, DamageCause.FIRE, DamageCause.FIRE_TICK, DamageCause.HOT_FLOOR, DamageCause.LAVA);
+    private final Set<DamageType> fireDamageTypes = Set.of(DamageType.CAMPFIRE, DamageType.HOT_FLOOR, DamageType.IN_FIRE, DamageType.LAVA, DamageType.ON_FIRE);
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
@@ -44,6 +49,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private long eventStartMillis;
     private long eventEndMillis;
     private StatisticKey eventSchweinereitenStatsKey;
+    private StatisticKey eventOlympicTorchStatsKey;
 
     @Override
     public void onEnable() {
@@ -151,6 +157,9 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         eventSchweinereitenStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.schweinereiten");
         eventSchweinereitenStatsKey.setDisplayName("Schweinereiten");
+
+        eventOlympicTorchStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.olympischefackel");
+        eventOlympicTorchStatsKey.setDisplayName("Olympische Fackel");
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
     }
@@ -271,6 +280,14 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return veggiesMaterials.contains(material);
     }
 
+    public boolean isFireDamage(DamageCause cause) {
+        return fireDamageCauses.contains(cause);
+    }
+
+    public boolean isFireDamage(DamageType type) {
+        return fireDamageTypes.contains(type);
+    }
+
     public KnownWorldMultiLocations getKnownWorldBuddelLocations(World world) {
         return previousBuddelLocations.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
     }
@@ -292,5 +309,15 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(eventSchweinereitenStatsKey, 1);
+    }
+
+    public void addOlympicTorchScore(Player p, int score) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        if (score > 0) {
+            playerStats.increaseScore(eventOlympicTorchStatsKey, score);
+        } else if (score < 0) {
+            playerStats.decreaseScore(eventOlympicTorchStatsKey, -score);
+        }
     }
 }
