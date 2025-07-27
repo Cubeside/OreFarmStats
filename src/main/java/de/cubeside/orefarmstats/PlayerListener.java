@@ -1,11 +1,15 @@
 package de.cubeside.orefarmstats;
 
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Boat;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,6 +20,8 @@ import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityBreedEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
@@ -39,14 +45,19 @@ public class PlayerListener implements Listener {
                 if (plugin.isDeepOre(material)) {
                     plugin.addDeepOreMined(e.getPlayer());
                 }
+                if (plugin.isNowInEvent() && plugin.isMedal(material)) {
+                    plugin.addMedalMined(e.getPlayer(), plugin.getMedalScore(material));
+                }
             }
         }
+
         if (plugin.isBuddelzeug(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
             if (plugin.getKnownWorldBuddelLocations(loc.getWorld()).add(loc)) {
                 plugin.addBuddeled(e.getPlayer());
             }
         }
+
         if (plugin.isLog(material)) {
             Location loc = e.getBlock().getLocation();
             if (!plugin.getKnownWorldLogLocations(loc.getWorld()).remove(loc)) {
@@ -64,6 +75,23 @@ public class PlayerListener implements Listener {
                 }
             }
         }
+
+        if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            if (plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc)) {
+                plugin.addGrassCut(e.getPlayer());
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityDeath(EntityDeathEvent e) {
+        EntityType type = e.getEntity().getType();
+        Player player = e.getEntity().getKiller();
+
+        if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
+            plugin.addFlySwat(player);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -75,6 +103,10 @@ public class PlayerListener implements Listener {
         if (plugin.isLog(e.getBlock().getType())) {
             Location loc = e.getBlock().getLocation();
             plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
+        }
+        if (plugin.isGrass(e.getBlock().getType())) {
+            Location loc = e.getBlock().getLocation();
+            plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc);
         }
     }
 
@@ -153,6 +185,30 @@ public class PlayerListener implements Listener {
                 if (plugin.getKnownWorldSchweinereiterLocations(loc.getWorld()).add(p.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
                     // plugin.getLogger().info("Player " + p.getName() + " moved on pig");
                     plugin.addSchweinereitenScore(p);
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onVehicleMove(VehicleMoveEvent e) {
+        if (plugin.isNowInEvent()) {
+            Entity vehicle = e.getVehicle();
+            if (vehicle instanceof Boat) {
+                Location pold = e.getFrom();
+                Location pnew = e.getTo();
+                if (pold.getWorld() == pnew.getWorld() && pold.getWorld() != null) {
+                    double dist = pold.distance(pnew);
+                    if (!Double.isNaN(dist) && !Double.isInfinite(dist) && dist > 0 && dist < 10) {
+                        for (Entity passenger : vehicle.getPassengers()) {
+                            if (passenger instanceof Player player) {
+                                if (player.getGameMode() != GameMode.CREATIVE
+                                        && player.getGameMode() != GameMode.SPECTATOR) {
+                                    plugin.addBoatTravel(player, dist);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
