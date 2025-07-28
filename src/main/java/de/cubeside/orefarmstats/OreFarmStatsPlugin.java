@@ -1,22 +1,28 @@
 package de.cubeside.orefarmstats;
 
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
+import de.iani.cubesidestats.api.Ordering;
 import de.iani.cubesidestats.api.PlayerStatistics;
+import de.iani.cubesidestats.api.PlayerWithScore;
+import de.iani.cubesidestats.api.PositionAlgorithm;
 import de.iani.cubesidestats.api.StatisticKey;
+import de.iani.cubesidestats.api.TimeFrame;
 import java.util.Calendar;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
-import org.bukkit.entity.EntityType;
 import org.bukkit.damage.DamageType;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -60,6 +66,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey eventFlySwatterStatsKey;
     private StatisticKey eventBoatTravelStatsKey;
     private StatisticKey eventOlympicTorchStatsKey;
+    private StatisticKey eventArcadeStatsKey;
+    private StatisticKey eventTotalScoreStatsKey;
 
     @Override
     public void onEnable() {
@@ -154,6 +162,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         boolean allWorldsLogged = loggedWorldsList.remove("*");
         loggedWorlds = allWorldsLogged ? null : Set.of(loggedWorldsList.toArray(new String[loggedWorldsList.size()]));
 
+        boolean updateEventStatsSum = getConfig().getBoolean("updateEventStatsSum", false);
+
         // for (String fileName : getDataFolder().list((dir, name) -> name.endsWith(".dat"))) {
         // String worldName = fileName.substring(0, fileName.length() - 4);
         // getKnownWorldOreLocations(worldName);
@@ -218,7 +228,17 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         eventOlympicTorchStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.olympischefackel");
         eventOlympicTorchStatsKey.setDisplayName("Olympische Fackel");
 
+        eventArcadeStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.olympischesArcade");
+        eventArcadeStatsKey.setDisplayName("Olympisches Arcade");
+
+        eventTotalScoreStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.total");
+        eventTotalScoreStatsKey.setDisplayName("Gesamtpunkte");
+
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+
+        if (updateEventStatsSum) {
+            getServer().getScheduler().runTaskTimer(this, this::updateStatsSum, 60 * 20, 60 * 20);
+        }
     }
 
     @Override
@@ -249,6 +269,47 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         previousGrasscutLocations.clear();
 
         playerBoatTravelAccumDist.clear();
+    }
+
+    private void updateStatsSum() {
+        final int totalScoredPlayers = 50;
+        eventTotalScoreStatsKey.getTop(0, 1024 * 1024, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, listSum -> {
+            eventSchweinereitenStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_1 -> {
+                eventMedalminingStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_2 -> {
+                    eventGrasscutterStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_3 -> {
+                        eventFlySwatterStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_4 -> {
+                            eventBoatTravelStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_5 -> {
+                                eventOlympicTorchStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_6 -> {
+                                    eventArcadeStatsKey.getTop(0, totalScoredPlayers, Ordering.DESCENDING, TimeFrame.ALL_TIME, PositionAlgorithm.TOTAL_ORDER, list_7 -> {
+                                        HashMap<UUID, Integer> playerScores = new HashMap<>();
+                                        for (List<PlayerWithScore> scoreList : List.of(list_1, list_2, list_3, list_4, list_5, list_6, list_7)) {
+                                            for (PlayerWithScore player : scoreList) {
+                                                int score = totalScoredPlayers + 1 - player.getPosition();
+                                                playerScores.merge(player.getPlayer().getOwner(), score, Integer::sum);
+                                            }
+                                        }
+                                        // update existing entries
+                                        for (PlayerWithScore totalScorePlayer : listSum) {
+                                            Integer expected = playerScores.remove(totalScorePlayer.getPlayer().getOwner());
+                                            if (expected == null) {
+                                                expected = 0;
+                                            }
+                                            if (totalScorePlayer.getScore() != expected) {
+                                                totalScorePlayer.getPlayer().setScore(eventTotalScoreStatsKey, expected);
+                                            }
+                                        }
+                                        // add missing entries
+                                        for (Entry<UUID, Integer> newScores : playerScores.entrySet()) {
+                                            cubesideStatistics.getStatistics(newScores.getKey()).setScore(eventTotalScoreStatsKey, newScores.getValue());
+                                        }
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(World world) {
