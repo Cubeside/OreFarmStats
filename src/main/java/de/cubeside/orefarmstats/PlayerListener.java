@@ -20,10 +20,10 @@ import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityBreedEvent;
-import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.inventory.ItemStack;
 
 public class PlayerListener implements Listener {
@@ -164,7 +164,7 @@ public class PlayerListener implements Listener {
         if (!plugin.isFireDamage(event.getCause())) {
             return;
         }
-        plugin.addOlympicTorchScore(player, (int) Math.floor(event.getFinalDamage()));
+        plugin.addOlympicTorchScore(player, event.getFinalDamage());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

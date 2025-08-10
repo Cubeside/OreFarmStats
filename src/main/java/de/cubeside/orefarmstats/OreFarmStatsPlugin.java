@@ -47,6 +47,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashMap<UUID, Double> playerBoatTravelAccumDist = new HashMap<>();
     private final Set<DamageCause> fireDamageCauses = EnumSet.of(DamageCause.CAMPFIRE, DamageCause.FIRE, DamageCause.FIRE_TICK, DamageCause.HOT_FLOOR, DamageCause.LAVA);
     private final Set<DamageType> fireDamageTypes = Set.of(DamageType.CAMPFIRE, DamageType.HOT_FLOOR, DamageType.IN_FIRE, DamageType.LAVA, DamageType.ON_FIRE);
+    private final Map<UUID, Double> olympicTorchPartialPoints = new HashMap<>();
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
@@ -507,13 +508,16 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         }
     }
 
-    public void addOlympicTorchScore(Player p, int score) {
+    public void addOlympicTorchScore(Player p, double score) {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
-        if (score > 0) {
-            playerStats.increaseScore(eventOlympicTorchStatsKey, score);
-        } else if (score < 0) {
-            playerStats.decreaseScore(eventOlympicTorchStatsKey, -score);
+        if (score < 0) {
+            playerStats.increaseScore(eventOlympicTorchStatsKey, (int) score);
+        } else {
+            score += olympicTorchPartialPoints.getOrDefault(playerId, 0.0);
+            int fullPoints = (int) Math.floor(score);
+            playerStats.increaseScore(eventOlympicTorchStatsKey, fullPoints);
+            olympicTorchPartialPoints.put(playerId, score - fullPoints);
         }
     }
 }
