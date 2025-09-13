@@ -11,7 +11,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
-import java.util.Set;
 
 public class CreateStatsDisplayCommand extends SubCommand {
 
@@ -33,13 +32,13 @@ public class CreateStatsDisplayCommand extends SubCommand {
             return true;
         }
 
-        String key = args.getNext();
-        if (!plugin.existGlobalStatsKey(key)) {
+        String statsKey = args.getNext();
+        if (!plugin.existGlobalStatsKey(statsKey)) {
             sender.sendMessage(Component.text("Key existiert nicht.").color(NamedTextColor.RED));
             return true;
         }
 
-        plugin.createDisplayEntity(player.getLocation(), key);
+        plugin.createDisplayEntity(player.getLocation(), statsKey);
         sender.sendMessage(Component.text("Stats-Display wurde gespawnt.").color(NamedTextColor.DARK_GREEN));
         return true;
     }
@@ -53,11 +52,8 @@ public class CreateStatsDisplayCommand extends SubCommand {
         }
         if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
-            Set<String> inUse = plugin.getStatsKeysInUse();
             for (GlobalStatisticKey gsk : plugin.getGlobalStatsKeys()) {
-                if (!inUse.contains(gsk.getName())) {
                     str.add(gsk.getName());
-                }
             }
             return str;
         }

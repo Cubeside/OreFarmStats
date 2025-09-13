@@ -3,6 +3,7 @@ package de.cubeside.orefarmstats;
 import de.cubeside.orefarmstats.commands.AddToStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.CreateStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.ListStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.RemoveFromStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.RemoveStatsDisplayCommand;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
 import de.iani.cubesidestats.api.GlobalStatisticKey;
@@ -13,24 +14,8 @@ import de.iani.cubesidestats.api.PlayerWithScore;
 import de.iani.cubesidestats.api.PositionAlgorithm;
 import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
-
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 import de.iani.cubesideutils.bukkit.commands.CommandRouter;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
@@ -52,18 +37,28 @@ import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
 public class OreFarmStatsPlugin extends JavaPlugin {
 
     private final HashMap<String, KnownWorldOreLocations> previousLocations = new HashMap<>();
     private final HashMap<String, KnownWorldMultiLocations> previousBuddelLocations = new HashMap<>();
-    private final HashSet<Material> oreMaterials = new HashSet<>();
-    private final HashSet<Material> deepOreMaterials = new HashSet<>();
-    private final HashSet<Material> logMaterials = new HashSet<>();
-    private final HashSet<Material> buddlerMaterials = new HashSet<>();
-    private final HashSet<Material> veggiesMaterials = new HashSet<>();
-    private final HashMap<Material, Integer> medalMaterials = new HashMap<>();
-    private final HashSet<Material> grassCutterMaterials = new HashSet<>();
-    private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
     private final Map<UUID, LinkedList<Location>> communityEventveggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
@@ -73,6 +68,16 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final Set<DamageCause> fireDamageCauses = EnumSet.of(DamageCause.CAMPFIRE, DamageCause.FIRE, DamageCause.FIRE_TICK, DamageCause.HOT_FLOOR, DamageCause.LAVA);
     private final Set<DamageType> fireDamageTypes = Set.of(DamageType.CAMPFIRE, DamageType.HOT_FLOOR, DamageType.IN_FIRE, DamageType.LAVA, DamageType.ON_FIRE);
     private final Map<UUID, Double> olympicTorchPartialPoints = new HashMap<>();
+
+    private final HashSet<Material> oreMaterials = new HashSet<>();
+    private final HashSet<Material> deepOreMaterials = new HashSet<>();
+    private final HashSet<Material> logMaterials = new HashSet<>();
+    private final HashSet<Material> buddlerMaterials = new HashSet<>();
+    private final HashSet<Material> veggiesMaterials = new HashSet<>();
+    private final HashMap<Material, Integer> medalMaterials = new HashMap<>();
+    private final HashSet<Material> grassCutterMaterials = new HashSet<>();
+    private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
+    private HashMap<Material, List<Object>> veggieStatsKeysMap;
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
@@ -110,10 +115,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private GlobalStatisticKey communityEventWheatStatsKey;
     private GlobalStatisticKey communityEventCocoaStatsKey;
 
-    private HashMap<Material, List<Object>> veggieStatsKeysMap;
-
-    private final Map<String, UUID> statsDisplays = new HashMap<>();
-    private final ConcurrentHashMap<String, Component> allTimeStats = new ConcurrentHashMap<>();
+    private final LinkedHashMap<UUID, List<String>> statsDisplays = new LinkedHashMap<>();
+    private final ConcurrentHashMap<UUID, Component> allTimeStats = new ConcurrentHashMap<>();
 
     @Override
     public void onEnable() {
@@ -121,8 +124,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         ConfigurationSection section = getConfig().getConfigurationSection("statsDisplays");
         if (section != null) {
             section.getKeys(false).forEach(key -> {
-                UUID uuid = UUID.fromString(section.getString(key));
-                statsDisplays.put(key.replace("!", "."), uuid);
+                UUID uuid = UUID.fromString(key);
+                statsDisplays.put(uuid, section.getStringList(key));
             });
         }
         statsDisplays.keySet().forEach(this::updateStatsComponent);
@@ -136,6 +139,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         router.addCommandMapping(new RemoveStatsDisplayCommand(this), "statsDisplay", "remove");
         router.addCommandMapping(new ListStatsDisplayCommand(this), "statsDisplay", "list");
         router.addCommandMapping(new AddToStatsDisplayCommand(this), "statsDisplay", "addStatTo");
+        router.addCommandMapping(new RemoveFromStatsDisplayCommand(this), "statsDisplay", "removeStatFrom");
 
         oreMaterials.addAll(deepOreMaterials);
         oreMaterials.add(Material.COAL_ORE);
@@ -371,8 +375,26 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             e.close();
         }
         previousGrasscutLocations.clear();
+    }
 
-        playerBoatTravelAccumDist.clear();
+    public StatisticKey getEventSchweinereitenStatsKey() {
+        return eventSchweinereitenStatsKey;
+    }
+
+    public StatisticKey getEventMedalminingStatsKey() {
+        return eventMedalminingStatsKey;
+    }
+
+    public StatisticKey getEventGrasscutterStatsKey() {
+        return eventGrasscutterStatsKey;
+    }
+
+    public StatisticKey getEventFlySwatterStatsKey() {
+        return eventFlySwatterStatsKey;
+    }
+
+    public StatisticKey getEventBoatTravelStatsKey() {
+        return eventBoatTravelStatsKey;
     }
 
     private void updateStatsSum() {
@@ -425,51 +447,54 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public int amountStatsDisplays() {
-        return new HashSet<>(statsDisplays.values()).size();
+        return statsDisplays.size();
     }
 
-    public TreeMap<UUID, List<String>> getKeysByStatDisplays() {
-        TreeMap<UUID, List<String>> keysToDisplay = new TreeMap<>();
-        statsDisplays.forEach((statsKey, display) -> {
-            keysToDisplay.putIfAbsent(display, new ArrayList<>());
-            keysToDisplay.get(display).add(statsKey);
-        });
-        return keysToDisplay;
-    }
-
-    public TreeSet<String> getDistinctStatDisplays() {
-        TreeSet<String> uuids = new TreeSet<String>();
-        uuids.addAll(statsDisplays.values().stream().map(uuid -> uuid.toString()).toList());
-        return uuids;
-    }
-
-    public Set<String> getStatsKeysInUse() {
-        return statsDisplays.keySet();
+    public LinkedHashMap<UUID, List<String>> getStatsDisplays() {
+        return new LinkedHashMap<>(statsDisplays);
     }
 
     public void createDisplayEntity(Location location, String statsKey) {
-        if (statsDisplays.containsKey(statsKey)) {
-            Entity entity = Bukkit.getEntity(statsDisplays.get(statsKey));
-            if (entity instanceof TextDisplay display && display.isValid()) {
-                display.remove();
-            }
-        }
-
         TextDisplay textDisplay = (TextDisplay) location.getWorld().spawnEntity(location, EntityType.TEXT_DISPLAY, CreatureSpawnEvent.SpawnReason.CUSTOM);
         textDisplay.setShadowed(true);
         textDisplay.setLineWidth(300);
         textDisplay.setAlignment(TextDisplay.TextAlignment.LEFT);
-        statsDisplays.put(statsKey, textDisplay.getUniqueId());
-        getConfig().set("statsDisplays." + statsKey.replace(".", "!"), textDisplay.getUniqueId().toString());
+        UUID id = textDisplay.getUniqueId();
+
+        List<String> newList = new ArrayList<String>();
+        newList.add(statsKey);
+        statsDisplays.put(id, newList);
+
+        getConfig().set("statsDisplays." + id, newList);
         saveConfig();
 
-        updateStatsComponent(statsKey);
+        updateStatsComponent(id);
     }
 
-    public void addStatToStatsDisplay(String statsKey, UUID id) {
-        if (statsDisplays.values().contains(id)) {
-            statsDisplays.put(statsKey, id);
+    public boolean addStatToStatsDisplay(String statsKey, UUID id) {
+        if (statsDisplays.containsKey(id)) {
+            statsDisplays.get(id).add(statsKey);
+
+            getConfig().set("statsDisplays." + id, statsDisplays.get(id));
+            saveConfig();
+
+            updateStatsComponent(id);
+            return true;
         }
+        return false;
+    }
+
+    public boolean removeStatFromStatsDisplay(String statsKey, UUID id) {
+        if (statsDisplays.containsKey(id)) {
+            statsDisplays.get(id).remove(statsKey);
+
+            getConfig().set("statsDisplays." + id, statsDisplays.get(id));
+            saveConfig();
+
+            updateStatsComponent(id);
+            return true;
+        }
+        return false;
     }
 
     public void removeDisplayEntity(UUID id) {
@@ -478,36 +503,41 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             display.remove();
         }
 
-        Map<String, UUID> statsDisplayCopy = new HashMap<>(statsDisplays);
-        statsDisplayCopy.forEach((statsKey, display) -> {
+        Map<UUID, List<String>> statsDisplayCopy = new HashMap<>(statsDisplays);
+        statsDisplayCopy.forEach((display, statsKeys) -> {
             if (display.equals(id)) {
-               statsDisplays.remove(statsKey);
-               getConfig().set("statsDisplays." + statsKey.replace(".", "!"), null);
-               saveConfig();
+               statsDisplays.remove(display);
+               getConfig().set("statsDisplays." + id, null);
             }
         });
+        saveConfig();
     }
 
-    public void updateStatsComponent(String statsKey) {
-        GlobalStatisticKey key = cubesideStatistics.getGlobalStatisticKey(statsKey);
-        cubesideStatistics.getGlobalStatistics().getValue(key, TimeFrame.ALL_TIME, allTime -> {
-            LinkedList<Component> components = new LinkedList<>();
-            components.add(Component.text("Insgesamt: ", Style.style(TextColor.color(0xFF1493), TextDecoration.BOLD)));
-            components.add(Component.text(allTime, NamedTextColor.YELLOW).append(Component.text(" " + key.getDisplayName(), NamedTextColor.GOLD)));
-
-            //components.add(Component.text(" ".repeat(35)));
-            Component combinedText = Component.empty();
-            boolean first = true;
-            for (Component component : components) {
-                if (!first) {
-                    combinedText = combinedText.append(Component.text("\n"));
-                }
-                first = false;
-                combinedText = combinedText.append(component);
+    public Component getCombinedText(LinkedList<Component> components) {
+        Component combinedText = Component.empty();
+        boolean first = true;
+        for (Component component : components) {
+            if (!first) {
+                combinedText = combinedText.append(Component.text("\n"));
             }
-            allTimeStats.put(statsKey, combinedText);
+            first = false;
+            combinedText = combinedText.append(component);
+        }
+        return combinedText;
+    }
 
-            updateDisplayEntity(statsKey);
+    public void updateStatsComponent(UUID id) {
+        LinkedList<Component> components = new LinkedList<>();
+        components.add(Component.text("Insgesamt: ", Style.style(TextColor.color(0xFF1493), TextDecoration.BOLD)));
+
+        List<String> statsKeys = statsDisplays.get(id);
+        statsKeys.forEach(statsKey -> {
+            GlobalStatisticKey key = cubesideStatistics.getGlobalStatisticKey(statsKey);
+            cubesideStatistics.getGlobalStatistics().getValue(key, TimeFrame.ALL_TIME, allTime -> {
+                components.add(Component.text(allTime, NamedTextColor.YELLOW).append(Component.text(" " + key.getDisplayName(), NamedTextColor.GOLD)));
+                allTimeStats.put(id, getCombinedText(components));
+                updateDisplayEntity(id);
+            });
         });
     };
 
@@ -515,11 +545,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         statsDisplays.keySet().forEach(this::updateDisplayEntity);
     }
 
-    public void updateDisplayEntity(String statsKey) {
+    public void updateDisplayEntity(UUID id) {
         TextDisplay textDisplay = null;
 
-        if (statsDisplays.containsKey(statsKey)) {
-            Entity entity = Bukkit.getEntity(statsDisplays.get(statsKey));
+        if (statsDisplays.containsKey(id)) {
+            Entity entity = Bukkit.getEntity(id);
             if (entity instanceof TextDisplay display && display.isValid()) {
                 textDisplay = display;
             }
@@ -529,9 +559,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             return;
         }
 
-        Component component = allTimeStats.getOrDefault(statsKey, Component.empty());
+        Component component = allTimeStats.getOrDefault(id, Component.empty());
 
         textDisplay.text(component);
+    }
+
+    public boolean isWorldLogged(World world) {
+        return loggedWorlds == null || loggedWorlds.contains(world.getName());
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(World world) {
@@ -540,6 +574,35 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public KnownWorldOreLocations getKnownWorldOreLocations(String world) {
         return previousLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2));
+    }
+
+    public KnownWorldOreLocations getKnownWorldLogLocations(World world) {
+        return getKnownWorldLogLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldLogLocations(String world) {
+        return previousLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
+    }
+
+    public KnownWorldMultiLocations getKnownWorldBuddelLocations(World world) {
+        return previousBuddelLocations.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
+    }
+
+    public KnownWorldPlayerChunks getKnownWorldSchweinereiterLocations(World world) {
+        return schweinereiterChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
+    }
+
+    public KnownWorldOreLocations getKnownWorldGrasscutLocations(World world) {
+        return getKnownWorldGrasscutLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldGrasscutLocations(String world) {
+        return previousGrasscutLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "grass"));
+    }
+
+    public boolean isNowInEvent() {
+        long now = System.currentTimeMillis();
+        return now >= eventStartMillis && now < eventEndMillis;
     }
 
     public boolean isOre(Material type) {
@@ -574,22 +637,26 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return flySwatterMobs.contains(type);
     }
 
+    public boolean isVeggie(Material material, boolean communityEvent) {
+        if (communityEvent) {
+            return veggieStatsKeysMap.containsKey(material);
+        } else {
+            return veggiesMaterials.contains(material);
+        }
+    }
+
+    public boolean isFireDamage(DamageCause cause) {
+        return fireDamageCauses.contains(cause);
+    }
+
+    public boolean isFireDamage(DamageType type) {
+        return fireDamageTypes.contains(type);
+    }
+
     // public boolean isActive() {
     // long now = System.currentTimeMillis();
     // return now >= startTime && now < endTime;
     // }
-
-    public boolean isWorldLogged(World world) {
-        return loggedWorlds == null || loggedWorlds.contains(world.getName());
-    }
-
-    public KnownWorldOreLocations getKnownWorldLogLocations(World world) {
-        return getKnownWorldLogLocations(world.getName());
-    }
-
-    public KnownWorldOreLocations getKnownWorldLogLocations(String world) {
-        return previousLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
-    }
 
     public void addOreMined(Player p) {
         UUID playerId = p.getUniqueId();
@@ -637,63 +704,6 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             locations.removeLast();
         }
         veggieLocationsPlayer.put(uuid, locations);
-    }
-
-    public boolean isVeggie(Material material, boolean communityEvent) {
-        if (communityEvent) {
-            return veggieStatsKeysMap.containsKey(material);
-        } else {
-            return veggiesMaterials.contains(material);
-        }
-    }
-
-    public boolean isFireDamage(DamageCause cause) {
-        return fireDamageCauses.contains(cause);
-    }
-
-    public boolean isFireDamage(DamageType type) {
-        return fireDamageTypes.contains(type);
-    }
-
-    public KnownWorldMultiLocations getKnownWorldBuddelLocations(World world) {
-        return previousBuddelLocations.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
-    }
-
-    public KnownWorldPlayerChunks getKnownWorldSchweinereiterLocations(World world) {
-        return schweinereiterChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
-    }
-
-    public KnownWorldOreLocations getKnownWorldGrasscutLocations(World world) {
-        return getKnownWorldGrasscutLocations(world.getName());
-    }
-
-    public KnownWorldOreLocations getKnownWorldGrasscutLocations(String world) {
-        return previousGrasscutLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "grass"));
-    }
-
-    public boolean isNowInEvent() {
-        long now = System.currentTimeMillis();
-        return now >= eventStartMillis && now < eventEndMillis;
-    }
-
-    public StatisticKey getEventSchweinereitenStatsKey() {
-        return eventSchweinereitenStatsKey;
-    }
-
-    public StatisticKey getEventMedalminingStatsKey() {
-        return eventMedalminingStatsKey;
-    }
-
-    public StatisticKey getEventGrasscutterStatsKey() {
-        return eventGrasscutterStatsKey;
-    }
-
-    public StatisticKey getEventFlySwatterStatsKey() {
-        return eventFlySwatterStatsKey;
-    }
-
-    public StatisticKey getEventBoatTravelStatsKey() {
-        return eventBoatTravelStatsKey;
     }
 
     public void addSchweinereitenScore(Player p) {

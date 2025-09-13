@@ -14,11 +14,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 
-public class AddToStatsDisplayCommand extends SubCommand {
+public class RemoveFromStatsDisplayCommand extends SubCommand {
 
     private final OreFarmStatsPlugin plugin;
 
-    public AddToStatsDisplayCommand(OreFarmStatsPlugin plugin) {
+    public RemoveFromStatsDisplayCommand(OreFarmStatsPlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -44,12 +44,12 @@ public class AddToStatsDisplayCommand extends SubCommand {
         List<UUID> ids = new ArrayList<>(statsDisplays.keySet());
         if (!ids.isEmpty() && nr < ids.size()) {
             UUID id = ids.get(nr);
-            if (statsDisplays.get(id).contains(statsKey)) {
-                sender.sendMessage(Component.text("Key bereits im Display enthalten.").color(NamedTextColor.RED));
+            if (!statsDisplays.get(id).contains(statsKey)) {
+                sender.sendMessage(Component.text("Dieser Key ist nicht im Display vorhanden.").color(NamedTextColor.RED));
                 return true;
             }
-            if (plugin.addStatToStatsDisplay(statsKey, id)) {
-                sender.sendMessage(Component.text("Key zum Display hinzugefügt.").color(NamedTextColor.DARK_GREEN));
+            if (plugin.removeStatFromStatsDisplay(statsKey, id)) {
+                sender.sendMessage(Component.text("Key vom Display entfernt.").color(NamedTextColor.DARK_GREEN));
             }
         } else {
             sender.sendMessage(Component.text("Dieses Display existiert nicht.").color(NamedTextColor.RED));

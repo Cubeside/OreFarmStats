@@ -9,8 +9,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.UUID;
 
 public class RemoveStatsDisplayCommand extends SubCommand {
@@ -23,7 +23,6 @@ public class RemoveStatsDisplayCommand extends SubCommand {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String alias, String commandString, ArgsParser args) {
-
         if (!args.hasNext()) {
             sender.sendMessage(Component.text(commandString + this.getUsage()).color((NamedTextColor.DARK_RED)));
             return true;
@@ -34,11 +33,14 @@ public class RemoveStatsDisplayCommand extends SubCommand {
             sender.sendMessage(Component.text("Dieses Display existiert nicht.").color(NamedTextColor.RED));
             return true;
         }
-        TreeMap<UUID, List<String>> keysByStatDisplays = plugin.getKeysByStatDisplays();
+        LinkedHashMap<UUID, List<String>> keysByStatDisplays = plugin.getStatsDisplays();
         List<UUID> keys = new ArrayList<>(keysByStatDisplays.keySet());
         if (!keys.isEmpty() && nr < keys.size()) {
             plugin.removeDisplayEntity(keys.get(nr));
             sender.sendMessage(Component.text("Display entfernt.").color(NamedTextColor.DARK_GREEN));
+        } else {
+            sender.sendMessage(Component.text("Dieses Display existiert nicht.").color(NamedTextColor.RED));
+            return true;
         }
 
         return true;
@@ -53,7 +55,7 @@ public class RemoveStatsDisplayCommand extends SubCommand {
         }
         if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
-            int amount = plugin.amountStatsDisplays();
+            int amount = plugin.getStatsDisplays().size();
             for (int id = 1; id <= amount; id++) {
                 str.add(String.valueOf(id));
             }
@@ -69,6 +71,6 @@ public class RemoveStatsDisplayCommand extends SubCommand {
 
     @Override
     public String getUsage() {
-        return "<statsKey>";
+        return "<id>";
     }
 }

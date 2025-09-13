@@ -85,17 +85,12 @@ public class PlayerListener implements Listener {
             }
         }
 */
-        System.out.println("Checkstart: " + plugin.isNowInEvent() + ", " + plugin.isVeggie(material, true));
         if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
-            System.out.println("Is Community Veg");
             if (e.getBlock().getBlockData() instanceof Ageable ageable) {
-                System.out.println("Is Ageable");
                 if (ageable.getAge() == ageable.getMaximumAge()) {
-                    System.out.println("Is Max Age");
                     plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
                 }
             } else {
-                System.out.println("Is NOT Ageable");
                 plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
             }
         }
