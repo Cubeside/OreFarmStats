@@ -45,9 +45,11 @@ public class PlayerListener implements Listener {
                 if (plugin.isDeepOre(material)) {
                     plugin.addDeepOreMined(e.getPlayer());
                 }
+                /*
                 if (plugin.isNowInEvent() && plugin.isMedal(material)) {
                     plugin.addMedalMined(e.getPlayer(), plugin.getMedalScore(material));
                 }
+                */
             }
         }
 
@@ -68,18 +70,33 @@ public class PlayerListener implements Listener {
             }
         }
 
-        if (plugin.isVeggie(material)) {
+        if (plugin.isVeggie(material, false)) {
             if (e.getBlock().getBlockData() instanceof Ageable ageable) {
                 if (ageable.getAge() == ageable.getMaximumAge()) {
                     plugin.addVeggie(e.getPlayer(), e.getBlock().getLocation());
                 }
             }
         }
-
+/*
         if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
             if (plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc)) {
                 plugin.addGrassCut(e.getPlayer());
+            }
+        }
+*/
+        System.out.println("Checkstart: " + plugin.isNowInEvent() + ", " + plugin.isVeggie(material, true));
+        if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
+            System.out.println("Is Community Veg");
+            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+                System.out.println("Is Ageable");
+                if (ageable.getAge() == ageable.getMaximumAge()) {
+                    System.out.println("Is Max Age");
+                    plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
+                }
+            } else {
+                System.out.println("Is NOT Ageable");
+                plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
             }
         }
     }

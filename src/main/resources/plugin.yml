@@ -5,3 +5,12 @@ version: 1.0.0
 main: de.cubeside.orefarmstats.OreFarmStatsPlugin
 depend: [CubesideStatistics]
 softdepend: [Multiverse-Core]
+commands:
+  orefarmstats:
+    aliases: [ofs]
+    description: orefarmstats command
+    usage: /<command>
+permissions:
+  orefarmstats.display.admin:
+    description:
+    default: op

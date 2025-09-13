@@ -1,13 +1,22 @@
 package de.cubeside.orefarmstats;
 
+import de.cubeside.orefarmstats.commands.AddToStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.CreateStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.ListStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.RemoveStatsDisplayCommand;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
+import de.iani.cubesidestats.api.GlobalStatisticKey;
+import de.iani.cubesidestats.api.GlobalStatistics;
 import de.iani.cubesidestats.api.Ordering;
 import de.iani.cubesidestats.api.PlayerStatistics;
 import de.iani.cubesidestats.api.PlayerWithScore;
 import de.iani.cubesidestats.api.PositionAlgorithm;
 import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
+
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,14 +25,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import de.iani.cubesideutils.bukkit.commands.CommandRouter;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.damage.DamageType;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
@@ -41,6 +65,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashSet<Material> grassCutterMaterials = new HashSet<>();
     private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
+    private final Map<UUID, LinkedList<Location>> communityEventveggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousGrasscutLocations = new HashMap<>();
@@ -70,17 +95,47 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey eventArcadeStatsKey;
     private StatisticKey eventTotalScoreStatsKey;
 
+    private StatisticKey communityEventPlayerMelonStatsKey;
+    private StatisticKey communityEventPlayerCarrotStatsKey;
+    private StatisticKey communityEventPlayerPotatoStatsKey;
+    private StatisticKey communityEventPlayerBeetrootStatsKey;
+    private StatisticKey communityEventPlayerPumpkinStatsKey;
+    private StatisticKey communityEventPlayerWheatStatsKey;
+    private StatisticKey communityEventPlayerCocoaStatsKey;
+    private GlobalStatisticKey communityEventMelonStatsKey;
+    private GlobalStatisticKey communityEventCarrotStatsKey;
+    private GlobalStatisticKey communityEventPotatoStatsKey;
+    private GlobalStatisticKey communityEventBeetrootStatsKey;
+    private GlobalStatisticKey communityEventPumpkinStatsKey;
+    private GlobalStatisticKey communityEventWheatStatsKey;
+    private GlobalStatisticKey communityEventCocoaStatsKey;
+
+    private HashMap<Material, List<Object>> veggieStatsKeysMap;
+
+    private final Map<String, UUID> statsDisplays = new HashMap<>();
+    private final ConcurrentHashMap<String, Component> allTimeStats = new ConcurrentHashMap<>();
+
     @Override
     public void onEnable() {
-        deepOreMaterials.add(Material.DEEPSLATE_COAL_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_DIAMOND_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_EMERALD_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_GOLD_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_IRON_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_LAPIS_ORE);
-        deepOreMaterials.add(Material.DEEPSLATE_REDSTONE_ORE);
-        deepOreMaterials.add(Material.ANCIENT_DEBRIS);
+        cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
+        ConfigurationSection section = getConfig().getConfigurationSection("statsDisplays");
+        if (section != null) {
+            section.getKeys(false).forEach(key -> {
+                UUID uuid = UUID.fromString(section.getString(key));
+                statsDisplays.put(key.replace("!", "."), uuid);
+            });
+        }
+        statsDisplays.keySet().forEach(this::updateStatsComponent);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            updateDisplayEntities();
+            statsDisplays.keySet().forEach(this::updateStatsComponent);
+        }, 20 * 10, 20 * 10);
+
+        CommandRouter router = new CommandRouter(getCommand("orefarmstats"));
+        router.addCommandMapping(new CreateStatsDisplayCommand(this), "statsDisplay", "create");
+        router.addCommandMapping(new RemoveStatsDisplayCommand(this), "statsDisplay", "remove");
+        router.addCommandMapping(new ListStatsDisplayCommand(this), "statsDisplay", "list");
+        router.addCommandMapping(new AddToStatsDisplayCommand(this), "statsDisplay", "addStatTo");
 
         oreMaterials.addAll(deepOreMaterials);
         oreMaterials.add(Material.COAL_ORE);
@@ -179,7 +234,6 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         // return;
         // }
 
-        cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
         oreStatsKey = cubesideStatistics.getStatisticKey("farmstats.ore");
         oreStatsKey.setDisplayName("Erze gemint");
         oreStatsKey.setIsMonthlyStats(true);
@@ -206,9 +260,9 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         Calendar c = Calendar.getInstance();
         c.set(Calendar.MILLISECOND, 0);
-        c.set(2025, Calendar.AUGUST, 10, 0, 0, 0);
+        c.set(2025, Calendar.SEPTEMBER, 9, 19, 0, 0);
         eventStartMillis = c.getTimeInMillis();
-        c.set(2025, Calendar.AUGUST, 17, 0, 0, 0);
+        c.set(2025, Calendar.SEPTEMBER, 21, 19, 0, 0);
         eventEndMillis = c.getTimeInMillis();
 
         eventSchweinereitenStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.schweinereiten");
@@ -234,6 +288,55 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         eventTotalScoreStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.total");
         eventTotalScoreStatsKey.setDisplayName("Gesamtpunkte");
+
+        communityEventPlayerMelonStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.melonen");
+        communityEventPlayerMelonStatsKey.setDisplayName("Melonen gefarmt");
+        communityEventMelonStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.melonen");
+        communityEventMelonStatsKey.setDisplayName("Melonen gemeinsam gefarmt");
+
+        communityEventPlayerPotatoStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.kartoffeln");
+        communityEventPlayerPotatoStatsKey.setDisplayName("Kartoffeln gefarmt");
+        communityEventPotatoStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.kartoffeln");
+        communityEventPotatoStatsKey.setDisplayName("Kartoffeln gemeinsam gefarmt");
+
+        communityEventPlayerPumpkinStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.kuerbisse");
+        communityEventPlayerPumpkinStatsKey.setDisplayName("Kürbisse gefarmt");
+        communityEventPumpkinStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.kuerbisse");
+        communityEventPumpkinStatsKey.setDisplayName("Kürbisse gemeinsam gefarmt");
+
+        communityEventPlayerCocoaStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.kakaobohnen");
+        communityEventPlayerCocoaStatsKey.setDisplayName("Kakaobohnen gefarmt");
+        communityEventCocoaStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.kakaobohnen");
+        communityEventCocoaStatsKey.setDisplayName("Kakaobohnen gemeinsam gefarmt");
+
+        communityEventPlayerCarrotStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.karotten");
+        communityEventPlayerCarrotStatsKey.setDisplayName("Karotten gefarmt");
+        communityEventCarrotStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.karotten");
+        communityEventCarrotStatsKey.setDisplayName("Karotten gemeinsam gefarmt");
+
+        communityEventPlayerBeetrootStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.rotebete");
+        communityEventPlayerBeetrootStatsKey.setDisplayName("Rote Bete gefarmt");
+        communityEventBeetrootStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.rotebete");
+        communityEventBeetrootStatsKey.setDisplayName("Rote Bete gemeinsam gefarmt");
+
+        communityEventPlayerWheatStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.weizen");
+        communityEventPlayerWheatStatsKey.setDisplayName("Weizen gefarmt");
+        communityEventWheatStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.weizen");
+        communityEventWheatStatsKey.setDisplayName("Weizen gemeinsam gefarmt");
+
+        veggieStatsKeysMap = new HashMap<>();
+        veggieStatsKeysMap.put(Material.MELON, List.of(communityEventPlayerMelonStatsKey, communityEventMelonStatsKey));
+        veggieStatsKeysMap.put(Material.POTATOES, List.of(communityEventPlayerPotatoStatsKey,
+                communityEventPotatoStatsKey));
+        veggieStatsKeysMap.put(Material.PUMPKIN, List.of(communityEventPlayerPumpkinStatsKey,
+                communityEventPumpkinStatsKey));
+        veggieStatsKeysMap.put(Material.COCOA, List.of(communityEventPlayerCocoaStatsKey,
+                communityEventCocoaStatsKey));
+        veggieStatsKeysMap.put(Material.CARROTS, List.of(communityEventPlayerCarrotStatsKey,
+                communityEventCarrotStatsKey));
+        veggieStatsKeysMap.put(Material.BEETROOTS, List.of(communityEventPlayerBeetrootStatsKey,
+                communityEventBeetrootStatsKey));
+        veggieStatsKeysMap.put(Material.WHEAT, List.of(communityEventPlayerWheatStatsKey, communityEventWheatStatsKey));
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 
@@ -311,6 +414,124 @@ public class OreFarmStatsPlugin extends JavaPlugin {
                 });
             });
         });
+    }
+
+    public Collection<? extends GlobalStatisticKey> getGlobalStatsKeys() {
+        return cubesideStatistics.getAllGlobalStatisticKeys();
+    }
+
+    public boolean existGlobalStatsKey(String key) {
+        return cubesideStatistics.hasGlobalStatisticKey(key);
+    }
+
+    public int amountStatsDisplays() {
+        return new HashSet<>(statsDisplays.values()).size();
+    }
+
+    public TreeMap<UUID, List<String>> getKeysByStatDisplays() {
+        TreeMap<UUID, List<String>> keysToDisplay = new TreeMap<>();
+        statsDisplays.forEach((statsKey, display) -> {
+            keysToDisplay.putIfAbsent(display, new ArrayList<>());
+            keysToDisplay.get(display).add(statsKey);
+        });
+        return keysToDisplay;
+    }
+
+    public TreeSet<String> getDistinctStatDisplays() {
+        TreeSet<String> uuids = new TreeSet<String>();
+        uuids.addAll(statsDisplays.values().stream().map(uuid -> uuid.toString()).toList());
+        return uuids;
+    }
+
+    public Set<String> getStatsKeysInUse() {
+        return statsDisplays.keySet();
+    }
+
+    public void createDisplayEntity(Location location, String statsKey) {
+        if (statsDisplays.containsKey(statsKey)) {
+            Entity entity = Bukkit.getEntity(statsDisplays.get(statsKey));
+            if (entity instanceof TextDisplay display && display.isValid()) {
+                display.remove();
+            }
+        }
+
+        TextDisplay textDisplay = (TextDisplay) location.getWorld().spawnEntity(location, EntityType.TEXT_DISPLAY, CreatureSpawnEvent.SpawnReason.CUSTOM);
+        textDisplay.setShadowed(true);
+        textDisplay.setLineWidth(300);
+        textDisplay.setAlignment(TextDisplay.TextAlignment.LEFT);
+        statsDisplays.put(statsKey, textDisplay.getUniqueId());
+        getConfig().set("statsDisplays." + statsKey.replace(".", "!"), textDisplay.getUniqueId().toString());
+        saveConfig();
+
+        updateStatsComponent(statsKey);
+    }
+
+    public void addStatToStatsDisplay(String statsKey, UUID id) {
+        if (statsDisplays.values().contains(id)) {
+            statsDisplays.put(statsKey, id);
+        }
+    }
+
+    public void removeDisplayEntity(UUID id) {
+        Entity entity = Bukkit.getEntity(id);
+        if (entity instanceof TextDisplay display && display.isValid()) {
+            display.remove();
+        }
+
+        Map<String, UUID> statsDisplayCopy = new HashMap<>(statsDisplays);
+        statsDisplayCopy.forEach((statsKey, display) -> {
+            if (display.equals(id)) {
+               statsDisplays.remove(statsKey);
+               getConfig().set("statsDisplays." + statsKey.replace(".", "!"), null);
+               saveConfig();
+            }
+        });
+    }
+
+    public void updateStatsComponent(String statsKey) {
+        GlobalStatisticKey key = cubesideStatistics.getGlobalStatisticKey(statsKey);
+        cubesideStatistics.getGlobalStatistics().getValue(key, TimeFrame.ALL_TIME, allTime -> {
+            LinkedList<Component> components = new LinkedList<>();
+            components.add(Component.text("Insgesamt: ", Style.style(TextColor.color(0xFF1493), TextDecoration.BOLD)));
+            components.add(Component.text(allTime, NamedTextColor.YELLOW).append(Component.text(" " + key.getDisplayName(), NamedTextColor.GOLD)));
+
+            //components.add(Component.text(" ".repeat(35)));
+            Component combinedText = Component.empty();
+            boolean first = true;
+            for (Component component : components) {
+                if (!first) {
+                    combinedText = combinedText.append(Component.text("\n"));
+                }
+                first = false;
+                combinedText = combinedText.append(component);
+            }
+            allTimeStats.put(statsKey, combinedText);
+
+            updateDisplayEntity(statsKey);
+        });
+    };
+
+    public void updateDisplayEntities() {
+        statsDisplays.keySet().forEach(this::updateDisplayEntity);
+    }
+
+    public void updateDisplayEntity(String statsKey) {
+        TextDisplay textDisplay = null;
+
+        if (statsDisplays.containsKey(statsKey)) {
+            Entity entity = Bukkit.getEntity(statsDisplays.get(statsKey));
+            if (entity instanceof TextDisplay display && display.isValid()) {
+                textDisplay = display;
+            }
+        }
+
+        if (textDisplay == null) {
+            return;
+        }
+
+        Component component = allTimeStats.getOrDefault(statsKey, Component.empty());
+
+        textDisplay.text(component);
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(World world) {
@@ -418,8 +639,12 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         veggieLocationsPlayer.put(uuid, locations);
     }
 
-    public boolean isVeggie(Material material) {
-        return veggiesMaterials.contains(material);
+    public boolean isVeggie(Material material, boolean communityEvent) {
+        if (communityEvent) {
+            return veggieStatsKeysMap.containsKey(material);
+        } else {
+            return veggiesMaterials.contains(material);
+        }
     }
 
     public boolean isFireDamage(DamageCause cause) {
@@ -519,5 +744,31 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             playerStats.increaseScore(eventOlympicTorchStatsKey, fullPoints);
             olympicTorchPartialPoints.put(playerId, score - fullPoints);
         }
+    }
+
+    public void addHerbstfestScore(Player p, Material type, Location location) {
+        List<Object> statKeys = veggieStatsKeysMap.get(type);
+        if (statKeys == null) {
+            return;
+        }
+
+        UUID uuid = p.getUniqueId();
+        communityEventveggieLocationsPlayer.putIfAbsent(uuid, new LinkedList<>());
+        LinkedList<Location> locations = communityEventveggieLocationsPlayer.get(uuid);
+        if (locations.contains(location)) {
+            return;
+        }
+        locations.addFirst(location);
+
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore((StatisticKey) statKeys.getFirst(), 1);
+        globalStatistic.increaseValue((GlobalStatisticKey) statKeys.getLast(), 1);
+
+        if (locations.size() > 50) {
+            locations.removeLast();
+        }
+        communityEventveggieLocationsPlayer.put(uuid, locations);
     }
 }
