@@ -1,3 +1,6 @@
 worlds:
     - '*'
 updateEventStatsSum: false
+drawWinner:
+    applicableStatKeys: {}
+statsDisplays: {}

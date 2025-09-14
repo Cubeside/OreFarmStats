@@ -66,7 +66,7 @@ public class RemoveStatsDisplayCommand extends SubCommand {
 
     @Override
     public String getRequiredPermission() {
-        return "orefarmstats.display.admin";
+        return "orefarmstats.display";
     }
 
     @Override

@@ -2,6 +2,7 @@ package de.cubeside.orefarmstats;
 
 import de.cubeside.orefarmstats.commands.AddToStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.CreateStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.DrawWinnerCommand;
 import de.cubeside.orefarmstats.commands.ListStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.RemoveFromStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.RemoveStatsDisplayCommand;
@@ -121,18 +122,6 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
-        ConfigurationSection section = getConfig().getConfigurationSection("statsDisplays");
-        if (section != null) {
-            section.getKeys(false).forEach(key -> {
-                UUID uuid = UUID.fromString(key);
-                statsDisplays.put(uuid, section.getStringList(key));
-            });
-        }
-        statsDisplays.keySet().forEach(this::updateStatsComponent);
-        getServer().getScheduler().runTaskTimer(this, () -> {
-            updateDisplayEntities();
-            statsDisplays.keySet().forEach(this::updateStatsComponent);
-        }, 20 * 10, 20 * 10);
 
         CommandRouter router = new CommandRouter(getCommand("orefarmstats"));
         router.addCommandMapping(new CreateStatsDisplayCommand(this), "statsDisplay", "create");
@@ -140,6 +129,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         router.addCommandMapping(new ListStatsDisplayCommand(this), "statsDisplay", "list");
         router.addCommandMapping(new AddToStatsDisplayCommand(this), "statsDisplay", "addStatTo");
         router.addCommandMapping(new RemoveFromStatsDisplayCommand(this), "statsDisplay", "removeStatFrom");
+        router.addCommandMapping(new DrawWinnerCommand(this), "drawWinner");
 
         oreMaterials.addAll(deepOreMaterials);
         oreMaterials.add(Material.COAL_ORE);
@@ -295,37 +285,37 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         communityEventPlayerMelonStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.melonen");
         communityEventPlayerMelonStatsKey.setDisplayName("Melonen gefarmt");
-        communityEventMelonStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.melonen");
+        communityEventMelonStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.melonen");
         communityEventMelonStatsKey.setDisplayName("Melonen gemeinsam gefarmt");
 
         communityEventPlayerPotatoStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.kartoffeln");
         communityEventPlayerPotatoStatsKey.setDisplayName("Kartoffeln gefarmt");
-        communityEventPotatoStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.kartoffeln");
+        communityEventPotatoStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.kartoffeln");
         communityEventPotatoStatsKey.setDisplayName("Kartoffeln gemeinsam gefarmt");
 
         communityEventPlayerPumpkinStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.kuerbisse");
         communityEventPlayerPumpkinStatsKey.setDisplayName("Kürbisse gefarmt");
-        communityEventPumpkinStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.kuerbisse");
+        communityEventPumpkinStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.kuerbisse");
         communityEventPumpkinStatsKey.setDisplayName("Kürbisse gemeinsam gefarmt");
 
         communityEventPlayerCocoaStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.kakaobohnen");
         communityEventPlayerCocoaStatsKey.setDisplayName("Kakaobohnen gefarmt");
-        communityEventCocoaStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.kakaobohnen");
+        communityEventCocoaStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.kakaobohnen");
         communityEventCocoaStatsKey.setDisplayName("Kakaobohnen gemeinsam gefarmt");
 
         communityEventPlayerCarrotStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.karotten");
         communityEventPlayerCarrotStatsKey.setDisplayName("Karotten gefarmt");
-        communityEventCarrotStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.karotten");
+        communityEventCarrotStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.karotten");
         communityEventCarrotStatsKey.setDisplayName("Karotten gemeinsam gefarmt");
 
         communityEventPlayerBeetrootStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.rotebete");
         communityEventPlayerBeetrootStatsKey.setDisplayName("Rote Bete gefarmt");
-        communityEventBeetrootStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.rotebete");
+        communityEventBeetrootStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.rotebete");
         communityEventBeetrootStatsKey.setDisplayName("Rote Bete gemeinsam gefarmt");
 
         communityEventPlayerWheatStatsKey = cubesideStatistics.getStatisticKey("herbstfest.2025.weizen");
         communityEventPlayerWheatStatsKey.setDisplayName("Weizen gefarmt");
-        communityEventWheatStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.community.weizen");
+        communityEventWheatStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.weizen");
         communityEventWheatStatsKey.setDisplayName("Weizen gemeinsam gefarmt");
 
         veggieStatsKeysMap = new HashMap<>();
@@ -343,6 +333,19 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         veggieStatsKeysMap.put(Material.WHEAT, List.of(communityEventPlayerWheatStatsKey, communityEventWheatStatsKey));
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+
+        ConfigurationSection section = getConfig().getConfigurationSection("statsDisplays");
+        if (section != null) {
+            section.getKeys(false).forEach(key -> {
+                UUID uuid = UUID.fromString(key);
+                statsDisplays.put(uuid, section.getStringList(key));
+            });
+        }
+        statsDisplays.keySet().forEach(this::updateStatsComponent);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            updateDisplayEntities();
+            statsDisplays.keySet().forEach(this::updateStatsComponent);
+        }, 20 * 10, 20 * 10);
 
         if (updateEventStatsSum) {
             getServer().getScheduler().runTaskTimer(this, this::updateStatsSum, 60 * 20, 60 * 20);
@@ -446,6 +449,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return cubesideStatistics.hasGlobalStatisticKey(key);
     }
 
+    public CubesideStatisticsAPI getStatistics() {
+        return cubesideStatistics;
+    }
+
     public int amountStatsDisplays() {
         return statsDisplays.size();
     }
@@ -513,12 +520,12 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         saveConfig();
     }
 
-    public Component getCombinedText(LinkedList<Component> components) {
+    public Component getCombinedText(LinkedList<Component> components, String seperator) {
         Component combinedText = Component.empty();
         boolean first = true;
         for (Component component : components) {
             if (!first) {
-                combinedText = combinedText.append(Component.text("\n"));
+                combinedText = combinedText.append(Component.text(seperator));
             }
             first = false;
             combinedText = combinedText.append(component);
@@ -531,13 +538,20 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         components.add(Component.text("Insgesamt: ", Style.style(TextColor.color(0xFF1493), TextDecoration.BOLD)));
 
         List<String> statsKeys = statsDisplays.get(id);
+        if (statsKeys.isEmpty()) {
+            allTimeStats.put(id, getCombinedText(components, "\n"));
+            updateDisplayEntity(id);
+            return;
+        }
         statsKeys.forEach(statsKey -> {
-            GlobalStatisticKey key = cubesideStatistics.getGlobalStatisticKey(statsKey);
-            cubesideStatistics.getGlobalStatistics().getValue(key, TimeFrame.ALL_TIME, allTime -> {
-                components.add(Component.text(allTime, NamedTextColor.YELLOW).append(Component.text(" " + key.getDisplayName(), NamedTextColor.GOLD)));
-                allTimeStats.put(id, getCombinedText(components));
-                updateDisplayEntity(id);
-            });
+            GlobalStatisticKey key = cubesideStatistics.getGlobalStatisticKey(statsKey, false);
+            if (key != null) {
+                cubesideStatistics.getGlobalStatistics().getValue(key, TimeFrame.ALL_TIME, allTime -> {
+                    components.add(Component.text(allTime, NamedTextColor.YELLOW).append(Component.text(" " + key.getDisplayName(), NamedTextColor.GOLD)));
+                    allTimeStats.put(id, getCombinedText(components, "\n"));
+                    updateDisplayEntity(id);
+                });
+            }
         });
     };
 

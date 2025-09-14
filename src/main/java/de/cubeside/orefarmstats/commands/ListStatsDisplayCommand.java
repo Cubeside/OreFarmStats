@@ -41,14 +41,14 @@ public class ListStatsDisplayCommand extends SubCommand {
                 components.add(Component.text(String.join("\n", statsDisplays.get(id))));
             }
         }
-        sender.sendMessage(plugin.getCombinedText(components));
+        sender.sendMessage(plugin.getCombinedText(components, "\n"));
 
         return true;
     }
 
     @Override
     public String getRequiredPermission() {
-        return "orefarmstats.display.admin";
+        return "orefarmstats.display";
     }
 
     @Override

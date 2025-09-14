@@ -29,15 +29,19 @@ public class AddToStatsDisplayCommand extends SubCommand {
             return true;
         }
 
-        String statsKey = args.getNext();
-        if (!plugin.existGlobalStatsKey(statsKey)) {
-            sender.sendMessage(Component.text("Key existiert nicht.").color(NamedTextColor.RED));
-            return true;
-        }
-
         int nr = args.getNext(-1) - 1;
         if (nr < 0) {
             sender.sendMessage(Component.text("Dieses Display existiert nicht.").color(NamedTextColor.RED));
+            return true;
+        }
+
+        if (!args.hasNext()) {
+            sender.sendMessage(Component.text(commandString + this.getUsage()).color((NamedTextColor.DARK_RED)));
+            return true;
+        }
+        String statsKey = args.getNext();
+        if (!plugin.existGlobalStatsKey(statsKey)) {
+            sender.sendMessage(Component.text("Key existiert nicht.").color(NamedTextColor.RED));
             return true;
         }
         LinkedHashMap<UUID, List<String>> statsDisplays = plugin.getStatsDisplays();
@@ -65,13 +69,13 @@ public class AddToStatsDisplayCommand extends SubCommand {
             i++;
             args.next();
         }
-        if (i == 1) {
+        if (i == 2) {
             ArrayList<String> str = new ArrayList<>();
             for (GlobalStatisticKey gsk : plugin.getGlobalStatsKeys()) {
                 str.add(gsk.getName());
             }
             return str;
-        } else if (i == 2) {
+        } else if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
             int amount = plugin.amountStatsDisplays();
             for (int id = 1; id <= amount; id++) {
@@ -84,11 +88,11 @@ public class AddToStatsDisplayCommand extends SubCommand {
 
     @Override
     public String getRequiredPermission() {
-        return "orefarmstats.display.admin";
+        return "orefarmstats.display";
     }
 
     @Override
     public String getUsage() {
-        return "<statsKey> <id>";
+        return "<id> <statsKey>";
     }
 }
