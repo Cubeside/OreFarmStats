@@ -533,6 +533,19 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return combinedText;
     }
 
+    public String getCombinedString(LinkedList<String> components, String seperator) {
+        String combinedText = new String();
+        boolean first = true;
+        for (String component : components) {
+            if (!first) {
+                combinedText += seperator;
+            }
+            first = false;
+            combinedText += component;
+        }
+        return combinedText;
+    }
+
     public void updateStatsComponent(UUID id) {
         LinkedList<Component> components = new LinkedList<>();
         components.add(Component.text("Insgesamt: ", Style.style(TextColor.color(0xFF1493), TextDecoration.BOLD)));
