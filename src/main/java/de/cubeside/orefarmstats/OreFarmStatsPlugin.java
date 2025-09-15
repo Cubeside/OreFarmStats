@@ -254,7 +254,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         Calendar c = Calendar.getInstance();
         c.set(Calendar.MILLISECOND, 0);
-        c.set(2025, Calendar.SEPTEMBER, 9, 19, 0, 0);
+        c.set(2025, Calendar.SEPTEMBER, 18, 19, 0, 0);
         eventStartMillis = c.getTimeInMillis();
         c.set(2025, Calendar.SEPTEMBER, 21, 19, 0, 0);
         eventEndMillis = c.getTimeInMillis();

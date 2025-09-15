@@ -1,6 +1,14 @@
 worlds:
     - '*'
 updateEventStatsSum: false
-drawWinner:
-    applicableStatKeys: {}
+lottery:
+    applicableStatKeys:
+        herbstfest_2025_karotten: 7
+        herbstfest_2025_kartoffeln: 7
+        herbstfest_2025_rotebete: 7
+        herbstfest_2025_weizen: 7
+        herbstfest_2025_melonen: 7
+        herbstfest_2025_kuerbisse: 7
+        herbstfest_2025_kakaobohnen: 7
+        herbstfest_2025_arcade: 1
 statsDisplays: {}

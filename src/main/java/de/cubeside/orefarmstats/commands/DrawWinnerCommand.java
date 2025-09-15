@@ -44,7 +44,7 @@ public class DrawWinnerCommand extends SubCommand {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String alias, String commandString, ArgsParser args) {
-        // Zusätzliche Teilnehmer (Stimmenanteil = 1 / alle zusätzlichen Teilnehmer
+        // Zusätzliche Teilnehmer (Stimmenanteil = 1 / alle zusätzlichen Teilnehmer)
         if (args.hasNext() && args.getNext().equals("addParticipants")) {
             if (!args.hasNext()) {
                 sender.sendMessage(Component.text(commandString + this.getUsage()).color((NamedTextColor.DARK_RED)));
@@ -64,7 +64,7 @@ public class DrawWinnerCommand extends SubCommand {
             return true;
         }
         // GlobalStatsKey und StatsKey müssen den selben Namen haben, sonst funktioniert es nicht
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("drawWinner");
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("lottery");
         if (section != null) {
             CubesideStatisticsAPI cubesideStatistics = plugin.getStatistics();
             if (cubesideStatistics == null) {
@@ -81,15 +81,28 @@ public class DrawWinnerCommand extends SubCommand {
                 allPlayerScores.put("extra", aP);
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-                List<String> statsKeys = section.getStringList("applicableStatKeys");
+                ConfigurationSection keysValuesection = section.getConfigurationSection("applicableStatKeys");
+                if (keysValuesection == null) {
+                    sender.sendMessage(Component.text("Es existiert nicht die benötige Sektion \"applicableStatKeys\" in der Config.").color(NamedTextColor.RED));
+                    task.cancel();
+                    return;
+                }
+
+                Map<String, Object> statsKeys = keysValuesection.getValues(false).entrySet()
+                        .stream()
+                        .collect(Collectors.toMap(
+                                e -> e.getKey().replace("_", "."),
+                                Map.Entry::getValue
+                        ));
+
                 if (statsKeys.isEmpty()) {
                     sender.sendMessage(Component.text("Es wurden keine Keys in der Config hinterlegt.").color(NamedTextColor.RED));
                     task.cancel();
                     return;
                 }
 
-                // Globale Statistiken
-                for (String key : statsKeys) {
+                // Anteile der Spieler pro Disziplin berechnen
+                for (String key : statsKeys.keySet()) {
                     GlobalStatisticKey globalStatsKey = cubesideStatistics.getGlobalStatisticKey(key, false);
                     if (globalStatsKey == null)
                         continue;
@@ -101,7 +114,8 @@ public class DrawWinnerCommand extends SubCommand {
                             statsKey.getTop(256, TimeFrame.ALL_TIME, playersWithScores -> {
                                 for (PlayerWithScore playerWithScore : playersWithScores) {
                                     UUID playerId = playerWithScore.getPlayer().getOwner();
-                                    playerScores.put(playerId, ((double) playerWithScore.getScore()) / value);
+                                    Object scaleFactor = statsKeys.get(key);
+                                    playerScores.put(playerId, (((double) playerWithScore.getScore()) / value) / ((scaleFactor instanceof Number) ? ((Number) scaleFactor).doubleValue() : 1d));
                                 }
                                 allPlayerScores.put(key, playerScores);
                                 cf.complete(null);
