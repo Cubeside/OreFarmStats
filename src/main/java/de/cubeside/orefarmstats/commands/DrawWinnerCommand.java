@@ -10,13 +10,6 @@ import de.iani.cubesideutils.bukkit.commands.SubCommand;
 import de.iani.cubesideutils.bukkit.plugin.CubesideUtilsBukkit;
 import de.iani.cubesideutils.commands.ArgsParser;
 import de.iani.playerUUIDCache.PlayerUUIDCache;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +24,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 
 public class DrawWinnerCommand extends SubCommand {
 
@@ -63,8 +62,9 @@ public class DrawWinnerCommand extends SubCommand {
                 playersToAdd.add(playerId);
             }
             addtionalParticipants.addAll(playersToAdd);
-            if (!playersToAdd.isEmpty())
+            if (!playersToAdd.isEmpty()) {
                 sender.sendMessage(Component.text("Spieler wurden hinzugefügt.").color((NamedTextColor.DARK_GREEN)));
+            }
             return true;
         }
         // GlobalStatsKey und StatsKey müssen den selben Namen haben, sonst funktioniert es nicht
@@ -100,8 +100,7 @@ public class DrawWinnerCommand extends SubCommand {
                     .stream()
                     .collect(Collectors.toMap(
                             e -> e.getKey().replace("_", "."),
-                            Map.Entry::getValue
-                    ));
+                            Map.Entry::getValue));
 
             if (statsKeys.isEmpty()) {
                 sender.sendMessage(Component.text("Es wurden keine Keys in der Config hinterlegt.").color(NamedTextColor.RED));
@@ -112,8 +111,9 @@ public class DrawWinnerCommand extends SubCommand {
             // Anteile der Spieler pro Disziplin berechnen
             for (String key : statsKeys.keySet()) {
                 GlobalStatisticKey globalStatsKey = cubesideStatistics.getGlobalStatisticKey(key, false);
-                if (globalStatsKey == null)
+                if (globalStatsKey == null) {
                     continue;
+                }
                 CompletableFuture<Void> cf = new CompletableFuture<>();
                 cubesideStatistics.getGlobalStatistics().getValue(globalStatsKey, TimeFrame.ALL_TIME, value -> {
                     StatisticKey statsKey = cubesideStatistics.getStatisticKey(key, false);
@@ -128,6 +128,8 @@ public class DrawWinnerCommand extends SubCommand {
                             allPlayerScores.put(key, playerScores);
                             cf.complete(null);
                         });
+                    } else {
+                        cf.complete(null);
                     }
                 });
                 futures.add(cf);
@@ -198,8 +200,9 @@ public class DrawWinnerCommand extends SubCommand {
                 }
                 sender.sendMessage(Component.text("Der Gewinner ist ").color(NamedTextColor.DARK_GREEN).append(Component.text(winnerName).color(NamedTextColor.RED))
                         .append(Component.text(". Gewinnchancen pro Spieler stehen im Log.").color(NamedTextColor.DARK_GREEN)));
-                if (!this.addtionalParticipants.isEmpty())
+                if (!this.addtionalParticipants.isEmpty()) {
                     sender.sendMessage(Component.text("Zusätzliche Teilnehmer wurden entfernt.").color((NamedTextColor.DARK_GREEN)));
+                }
                 this.addtionalParticipants.clear();
             }));
         });
