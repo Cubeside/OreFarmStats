@@ -4,13 +4,12 @@ import de.cubeside.orefarmstats.OreFarmStatsPlugin;
 import de.iani.cubesidestats.api.GlobalStatisticKey;
 import de.iani.cubesideutils.bukkit.commands.SubCommand;
 import de.iani.cubesideutils.commands.ArgsParser;
+import java.util.ArrayList;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-
-import java.util.ArrayList;
 
 public class CreateStatsDisplayCommand extends SubCommand {
 
@@ -53,7 +52,7 @@ public class CreateStatsDisplayCommand extends SubCommand {
         if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
             for (GlobalStatisticKey gsk : plugin.getGlobalStatsKeys()) {
-                    str.add(gsk.getName());
+                str.add(gsk.getName());
             }
             return str;
         }

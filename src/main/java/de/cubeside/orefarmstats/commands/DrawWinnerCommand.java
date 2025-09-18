@@ -123,7 +123,7 @@ public class DrawWinnerCommand extends SubCommand {
                             for (PlayerWithScore playerWithScore : playersWithScores) {
                                 UUID playerId = playerWithScore.getPlayer().getOwner();
                                 Object scaleFactor = statsKeys.get(key);
-                                playerScores.put(playerId, (((double) playerWithScore.getScore()) / value) / ((scaleFactor instanceof Number) ? ((Number) scaleFactor).doubleValue() : 1d));
+                                playerScores.put(playerId, (((double) playerWithScore.getScore()) / value) / ((scaleFactor instanceof Number n) ? n.doubleValue() : 1d));
                             }
                             allPlayerScores.put(key, playerScores);
                             cf.complete(null);

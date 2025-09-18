@@ -16,7 +16,20 @@ import de.iani.cubesidestats.api.PositionAlgorithm;
 import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
 import de.iani.cubesideutils.bukkit.commands.CommandRouter;
-
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
@@ -37,24 +50,6 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class OreFarmStatsPlugin extends JavaPlugin {
 
@@ -468,7 +463,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         textDisplay.setAlignment(TextDisplay.TextAlignment.LEFT);
         UUID id = textDisplay.getUniqueId();
 
-        List<String> newList = new ArrayList<String>();
+        List<String> newList = new ArrayList<>();
         newList.add(statsKey);
         statsDisplays.put(id, newList);
 
@@ -513,8 +508,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         Map<UUID, List<String>> statsDisplayCopy = new HashMap<>(statsDisplays);
         statsDisplayCopy.forEach((display, statsKeys) -> {
             if (display.equals(id)) {
-               statsDisplays.remove(display);
-               getConfig().set("statsDisplays." + id, null);
+                statsDisplays.remove(display);
+                getConfig().set("statsDisplays." + id, null);
             }
         });
         saveConfig();
@@ -534,16 +529,16 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public String getCombinedString(LinkedList<String> components, String seperator) {
-        String combinedText = new String();
+        StringBuilder combinedText = new StringBuilder();
         boolean first = true;
         for (String component : components) {
             if (!first) {
-                combinedText += seperator;
+                combinedText.append(seperator);
             }
             first = false;
-            combinedText += component;
+            combinedText.append(component);
         }
-        return combinedText;
+        return combinedText.toString();
     }
 
     public void updateStatsComponent(UUID id) {
@@ -566,7 +561,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
                 });
             }
         });
-    };
+    }
 
     public void updateDisplayEntities() {
         statsDisplays.keySet().forEach(this::updateDisplayEntity);
@@ -600,7 +595,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public KnownWorldOreLocations getKnownWorldOreLocations(String world) {
-        return previousLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2));
+        return previousLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2));
     }
 
     public KnownWorldOreLocations getKnownWorldLogLocations(World world) {
@@ -608,15 +603,15 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public KnownWorldOreLocations getKnownWorldLogLocations(String world) {
-        return previousLogLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "log"));
+        return previousLogLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "log"));
     }
 
     public KnownWorldMultiLocations getKnownWorldBuddelLocations(World world) {
-        return previousBuddelLocations.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
+        return previousBuddelLocations.computeIfAbsent(world.getName(), world2 -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
     }
 
     public KnownWorldPlayerChunks getKnownWorldSchweinereiterLocations(World world) {
-        return schweinereiterChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
+        return schweinereiterChunks.computeIfAbsent(world.getName(), world2 -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
     }
 
     public KnownWorldOreLocations getKnownWorldGrasscutLocations(World world) {
@@ -624,7 +619,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     }
 
     public KnownWorldOreLocations getKnownWorldGrasscutLocations(String world) {
-        return previousGrasscutLocations.computeIfAbsent(world, (world2) -> new KnownWorldOreLocations(this, world2, "grass"));
+        return previousGrasscutLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "grass"));
     }
 
     public boolean isNowInEvent() {
