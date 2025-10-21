@@ -1,11 +1,13 @@
 package de.cubeside.orefarmstats;
 
-import de.cubeside.orefarmstats.commands.AddToStatsDisplayCommand;
-import de.cubeside.orefarmstats.commands.CreateStatsDisplayCommand;
-import de.cubeside.orefarmstats.commands.DrawWinnerCommand;
-import de.cubeside.orefarmstats.commands.ListStatsDisplayCommand;
-import de.cubeside.orefarmstats.commands.RemoveFromStatsDisplayCommand;
-import de.cubeside.orefarmstats.commands.RemoveStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.AddToStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.CreateStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.evaluation.DrawWinnerCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.ListStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.RemoveFromStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.RemoveStatsDisplayCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.SetStatTextOnDisplayCommand;
+import de.cubeside.orefarmstats.commands.statsDisplay.SetStatsDisplayHeadlineCommand;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
 import de.iani.cubesidestats.api.GlobalStatisticKey;
 import de.iani.cubesidestats.api.GlobalStatistics;
@@ -16,50 +18,53 @@ import de.iani.cubesidestats.api.PositionAlgorithm;
 import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
 import de.iani.cubesideutils.bukkit.commands.CommandRouter;
-import java.util.ArrayList;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.Style;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
+import java.util.logging.Level;
+
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.damage.DamageType;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
-import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 public class OreFarmStatsPlugin extends JavaPlugin {
 
+    private StatsDisplayManager statsDisplays;
+
+    // TODO Eiskratzermonat:
+    // alle Eistypen
+    // Schneeblöcke, Schneeteppiche, Puderschnee (Eimer Event beachten)
+
     private final HashMap<String, KnownWorldOreLocations> previousLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldOreLocations> previousEventLocations = new HashMap<>();
     private final HashMap<String, KnownWorldMultiLocations> previousBuddelLocations = new HashMap<>();
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
     private final Map<UUID, LinkedList<Location>> communityEventveggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldOreLocations> previousEventLogLocations = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousGrasscutLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldMultiChunks> halloweenMonsterkillingChunks = new HashMap<>();
+    private final HashMap<String, KnownWorldPlayerChunks> schreiterReiterChunks = new HashMap<>();
+
     private final HashMap<UUID, Double> playerBoatTravelAccumDist = new HashMap<>();
     private final Set<DamageCause> fireDamageCauses = EnumSet.of(DamageCause.CAMPFIRE, DamageCause.FIRE, DamageCause.FIRE_TICK, DamageCause.HOT_FLOOR, DamageCause.LAVA);
     private final Set<DamageType> fireDamageTypes = Set.of(DamageType.CAMPFIRE, DamageType.HOT_FLOOR, DamageType.IN_FIRE, DamageType.LAVA, DamageType.ON_FIRE);
@@ -74,6 +79,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashSet<Material> grassCutterMaterials = new HashSet<>();
     private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
     private HashMap<Material, List<Object>> veggieStatsKeysMap;
+    private HashMap<EntityType, List<Object>> halloweenMonsterKillingStatsKeysMap;
+
+    private final HashSet<Material> halloweenMiningMaterials = new HashSet<>();
+    private final HashSet<Material> halloweenNetherbaumMaterials = new HashSet<>();
     // private long startTime;
     // private long endTime;
     private @Nullable CubesideStatisticsAPI cubesideStatistics;
@@ -111,20 +120,43 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private GlobalStatisticKey communityEventWheatStatsKey;
     private GlobalStatisticKey communityEventCocoaStatsKey;
 
-    private final LinkedHashMap<UUID, List<String>> statsDisplays = new LinkedHashMap<>();
-    private final ConcurrentHashMap<UUID, Component> allTimeStats = new ConcurrentHashMap<>();
+    private StatisticKey halloween2025PlayerCreeperKillingStatsKey;
+    private StatisticKey halloween2025PlayerPhantomKillingStatsKey;
+    private StatisticKey halloween2025PlayerMiningStatsKey;
+    private StatisticKey halloween2025PlayerSchreiterreiterStatsKey;
+    private StatisticKey halloween2025PlayerNetherbaumStatsKey;
+    private StatisticKey halloween2025PlayerNetherwarzenStatsKey;
+    private GlobalStatisticKey halloween2025CommunityCreeperKillingStatsKey;
+    private GlobalStatisticKey halloween2025CommunityPhantomKillingStatsKey;
+    private GlobalStatisticKey halloween2025CommunityMiningStatsKey;
+    private GlobalStatisticKey halloween2025CommunitySchreiterreiterStatsKey;
+    private GlobalStatisticKey halloween2025CommunityNetherbaumStatsKey;
+    private GlobalStatisticKey halloween2025CommunityNetherwarzenStatsKey;
 
     @Override
     public void onEnable() {
         cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
+        statsDisplays = new StatsDisplayManager(this, cubesideStatistics);
 
         CommandRouter router = new CommandRouter(getCommand("orefarmstats"));
-        router.addCommandMapping(new CreateStatsDisplayCommand(this), "statsDisplay", "create");
-        router.addCommandMapping(new RemoveStatsDisplayCommand(this), "statsDisplay", "remove");
-        router.addCommandMapping(new ListStatsDisplayCommand(this), "statsDisplay", "list");
-        router.addCommandMapping(new AddToStatsDisplayCommand(this), "statsDisplay", "addStatTo");
-        router.addCommandMapping(new RemoveFromStatsDisplayCommand(this), "statsDisplay", "removeStatFrom");
+        router.addCommandMapping(new CreateStatsDisplayCommand(statsDisplays), "statsDisplay", "create");
+        router.addCommandMapping(new RemoveStatsDisplayCommand(statsDisplays), "statsDisplay", "remove");
+        router.addCommandMapping(new ListStatsDisplayCommand(statsDisplays), "statsDisplay", "list");
+        router.addCommandMapping(new AddToStatsDisplayCommand(statsDisplays), "statsDisplay", "addStatTo");
+        router.addCommandMapping(new RemoveFromStatsDisplayCommand(statsDisplays), "statsDisplay", "removeStatFrom");
+        router.addCommandMapping(new SetStatsDisplayHeadlineCommand(statsDisplays), "statsDisplay", "setHeadline");
+        router.addCommandMapping(new SetStatTextOnDisplayCommand(statsDisplays), "statsDisplay", "setStatTextOn");
         router.addCommandMapping(new DrawWinnerCommand(this), "drawWinner");
+
+        deepOreMaterials.add(Material.DEEPSLATE_COAL_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_DIAMOND_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_EMERALD_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_GOLD_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_IRON_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_LAPIS_ORE);
+        deepOreMaterials.add(Material.DEEPSLATE_REDSTONE_ORE);
+        deepOreMaterials.add(Material.ANCIENT_DEBRIS);
 
         oreMaterials.addAll(deepOreMaterials);
         oreMaterials.add(Material.COAL_ORE);
@@ -201,6 +233,15 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         flySwatterMobs.add(EntityType.BAT);
         flySwatterMobs.add(EntityType.ALLAY);
 
+        halloweenMiningMaterials.add(Material.GILDED_BLACKSTONE);
+        halloweenMiningMaterials.add(Material.ANCIENT_DEBRIS);
+
+        halloweenNetherbaumMaterials.add(Material.SHROOMLIGHT);
+        halloweenNetherbaumMaterials.add(Material.WARPED_STEM);
+        halloweenNetherbaumMaterials.add(Material.WARPED_WART_BLOCK);
+        halloweenNetherbaumMaterials.add(Material.CRIMSON_STEM);
+        halloweenNetherbaumMaterials.add(Material.NETHER_WART_BLOCK);
+
         getDataFolder().mkdirs();
         saveDefaultConfig();
         HashSet<String> loggedWorldsList = new HashSet<>(getConfig().getStringList("worlds"));
@@ -222,6 +263,23 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         // getLogger().log(Level.SEVERE, "Could not parse start/end time!", e);
         // return;
         // }
+
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.MILLISECOND, 0);
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        ConfigurationSection eventSection = getConfig().getConfigurationSection("event");
+        if (eventSection != null) {
+            try {
+                c.setTime(format.parse(eventSection.getString("start")));
+                eventStartMillis = c.getTimeInMillis();
+                c.setTime(format.parse(eventSection.getString("end")));
+                eventEndMillis = c.getTimeInMillis();
+            } catch (ParseException e) {
+                getLogger().log(Level.SEVERE, "Date and Time could not be parsed from config.");
+                eventStartMillis = 0L;
+                eventEndMillis = 0L;
+            }
+        }
 
         oreStatsKey = cubesideStatistics.getStatisticKey("farmstats.ore");
         oreStatsKey.setDisplayName("Erze gemint");
@@ -246,13 +304,6 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         veggieStatsKey = cubesideStatistics.getStatisticKey("farmstats.plants");
         veggieStatsKey.setDisplayName("Gemüse gefarmt");
         veggieStatsKey.setIsMonthlyStats(true);
-
-        Calendar c = Calendar.getInstance();
-        c.set(Calendar.MILLISECOND, 0);
-        c.set(2025, Calendar.SEPTEMBER, 18, 19, 0, 0);
-        eventStartMillis = c.getTimeInMillis();
-        c.set(2025, Calendar.SEPTEMBER, 21, 19, 0, 0);
-        eventEndMillis = c.getTimeInMillis();
 
         eventSchweinereitenStatsKey = cubesideStatistics.getStatisticKey("sommerspiele.2025.schweinereiten");
         eventSchweinereitenStatsKey.setDisplayName("Schweinereiten");
@@ -313,34 +364,45 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         communityEventWheatStatsKey = cubesideStatistics.getGlobalStatisticKey("herbstfest.2025.weizen");
         communityEventWheatStatsKey.setDisplayName("Weizen gemeinsam gefarmt");
 
+        halloween2025PlayerMiningStatsKey = cubesideStatistics.getStatisticKey("halloween.2025.mining");
+        halloween2025PlayerMiningStatsKey.setDisplayName("Golddurchzogenen Schwarzstein und Antiken Schrott gemint");
+        halloween2025CommunityMiningStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.mining");
+        halloween2025CommunityMiningStatsKey.setDisplayName("Golddurchzogenen Schwarzstein und Antiken Schrott gemint");
+        halloween2025PlayerCreeperKillingStatsKey = cubesideStatistics.getStatisticKey("halloween.2025.creeper");
+        halloween2025PlayerCreeperKillingStatsKey.setDisplayName("Creeper besiegt");
+        halloween2025CommunityCreeperKillingStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.creeper");
+        halloween2025CommunityCreeperKillingStatsKey.setDisplayName("Creeper besiegt");
+        halloween2025PlayerPhantomKillingStatsKey = cubesideStatistics.getStatisticKey("halloween.2025.phantome");
+        halloween2025PlayerPhantomKillingStatsKey.setDisplayName("Phantome besiegt");
+        halloween2025CommunityPhantomKillingStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.phantome");
+        halloween2025CommunityPhantomKillingStatsKey.setDisplayName("Creeper besiegt");
+        halloween2025PlayerSchreiterreiterStatsKey = cubesideStatistics.getStatisticKey("halloween.2025.schreitereiter");
+        halloween2025PlayerSchreiterreiterStatsKey.setDisplayName("Chunks mit Stridern bereist");
+        halloween2025CommunitySchreiterreiterStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.schreitereiter");
+        halloween2025CommunitySchreiterreiterStatsKey.setDisplayName("Chunks mit Stridern gemeinsam bereist");
+        halloween2025PlayerNetherbaumStatsKey = cubesideStatistics.getStatisticKey("halloween.2025.netherbaeume");
+        halloween2025PlayerNetherbaumStatsKey.setDisplayName("Netherbäume abgeholzt");
+        halloween2025CommunityNetherbaumStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.netherbaeume");
+        halloween2025CommunityNetherbaumStatsKey.setDisplayName("Netherbäume gemeinsam abgeholzt");
+        halloween2025PlayerNetherwarzenStatsKey = cubesideStatistics.getStatisticKey("halloween.2025.netherwarzen");
+        halloween2025PlayerNetherwarzenStatsKey.setDisplayName("Netherwarzen gefarmt");
+        halloween2025CommunityNetherwarzenStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.netherwarzen");
+        halloween2025CommunityNetherwarzenStatsKey.setDisplayName("Netherwarzen gemeinsam gefarmt");
+
         veggieStatsKeysMap = new HashMap<>();
         veggieStatsKeysMap.put(Material.MELON, List.of(communityEventPlayerMelonStatsKey, communityEventMelonStatsKey));
-        veggieStatsKeysMap.put(Material.POTATOES, List.of(communityEventPlayerPotatoStatsKey,
-                communityEventPotatoStatsKey));
-        veggieStatsKeysMap.put(Material.PUMPKIN, List.of(communityEventPlayerPumpkinStatsKey,
-                communityEventPumpkinStatsKey));
-        veggieStatsKeysMap.put(Material.COCOA, List.of(communityEventPlayerCocoaStatsKey,
-                communityEventCocoaStatsKey));
-        veggieStatsKeysMap.put(Material.CARROTS, List.of(communityEventPlayerCarrotStatsKey,
-                communityEventCarrotStatsKey));
-        veggieStatsKeysMap.put(Material.BEETROOTS, List.of(communityEventPlayerBeetrootStatsKey,
-                communityEventBeetrootStatsKey));
+        veggieStatsKeysMap.put(Material.POTATOES, List.of(communityEventPlayerPotatoStatsKey, communityEventPotatoStatsKey));
+        veggieStatsKeysMap.put(Material.PUMPKIN, List.of(communityEventPlayerPumpkinStatsKey, communityEventPumpkinStatsKey));
+        veggieStatsKeysMap.put(Material.COCOA, List.of(communityEventPlayerCocoaStatsKey, communityEventCocoaStatsKey));
+        veggieStatsKeysMap.put(Material.CARROTS, List.of(communityEventPlayerCarrotStatsKey, communityEventCarrotStatsKey));
+        veggieStatsKeysMap.put(Material.BEETROOTS, List.of(communityEventPlayerBeetrootStatsKey, communityEventBeetrootStatsKey));
         veggieStatsKeysMap.put(Material.WHEAT, List.of(communityEventPlayerWheatStatsKey, communityEventWheatStatsKey));
 
-        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+        halloweenMonsterKillingStatsKeysMap = new HashMap<>();
+        halloweenMonsterKillingStatsKeysMap.put(EntityType.CREEPER, List.of(halloween2025PlayerCreeperKillingStatsKey, halloween2025CommunityCreeperKillingStatsKey));
+        halloweenMonsterKillingStatsKeysMap.put(EntityType.PHANTOM, List.of(halloween2025PlayerPhantomKillingStatsKey, halloween2025CommunityPhantomKillingStatsKey));
 
-        ConfigurationSection section = getConfig().getConfigurationSection("statsDisplays");
-        if (section != null) {
-            section.getKeys(false).forEach(key -> {
-                UUID uuid = UUID.fromString(key);
-                statsDisplays.put(uuid, section.getStringList(key));
-            });
-        }
-        statsDisplays.keySet().forEach(this::updateStatsComponent);
-        getServer().getScheduler().runTaskTimer(this, () -> {
-            updateDisplayEntities();
-            statsDisplays.keySet().forEach(this::updateStatsComponent);
-        }, 20 * 10, 20 * 10);
+        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 
         if (updateEventStatsSum) {
             getServer().getScheduler().runTaskTimer(this, this::updateStatsSum, 60 * 20, 60 * 20);
@@ -369,10 +431,34 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         }
         schweinereiterChunks.clear();
 
+        for (KnownWorldPlayerChunks e : schreiterReiterChunks.values()) {
+            e.close();
+        }
+        schreiterReiterChunks.clear();
+
         for (KnownWorldOreLocations e : previousGrasscutLocations.values()) {
             e.close();
         }
         previousGrasscutLocations.clear();
+
+        for (KnownWorldMultiChunks e : halloweenMonsterkillingChunks.values()) {
+            e.close();
+        }
+        halloweenMonsterkillingChunks.clear();
+
+        for (KnownWorldOreLocations e : previousEventLocations.values()) {
+            e.close();
+        }
+        previousEventLocations.clear();
+
+        for (KnownWorldOreLocations e : previousEventLogLocations.values()) {
+            e.close();
+        }
+        previousEventLogLocations.clear();
+    }
+
+    public StatsDisplayManager getStatsDisplayManager() {
+        return statsDisplays;
     }
 
     public StatisticKey getEventSchweinereitenStatsKey() {
@@ -436,154 +522,17 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         });
     }
 
-    public Collection<? extends GlobalStatisticKey> getGlobalStatsKeys() {
-        return cubesideStatistics.getAllGlobalStatisticKeys();
-    }
-
-    public boolean existGlobalStatsKey(String key) {
-        return cubesideStatistics.hasGlobalStatisticKey(key);
-    }
-
-    public CubesideStatisticsAPI getStatistics() {
-        return cubesideStatistics;
-    }
-
-    public int amountStatsDisplays() {
-        return statsDisplays.size();
-    }
-
-    public LinkedHashMap<UUID, List<String>> getStatsDisplays() {
-        return new LinkedHashMap<>(statsDisplays);
-    }
-
-    public void createDisplayEntity(Location location, String statsKey) {
-        TextDisplay textDisplay = (TextDisplay) location.getWorld().spawnEntity(location, EntityType.TEXT_DISPLAY, CreatureSpawnEvent.SpawnReason.CUSTOM);
-        textDisplay.setShadowed(true);
-        textDisplay.setLineWidth(300);
-        textDisplay.setAlignment(TextDisplay.TextAlignment.LEFT);
-        UUID id = textDisplay.getUniqueId();
-
-        List<String> newList = new ArrayList<>();
-        newList.add(statsKey);
-        statsDisplays.put(id, newList);
-
-        getConfig().set("statsDisplays." + id, newList);
-        saveConfig();
-
-        updateStatsComponent(id);
-    }
-
-    public boolean addStatToStatsDisplay(String statsKey, UUID id) {
-        if (statsDisplays.containsKey(id)) {
-            statsDisplays.get(id).add(statsKey);
-
-            getConfig().set("statsDisplays." + id, statsDisplays.get(id));
-            saveConfig();
-
-            updateStatsComponent(id);
-            return true;
-        }
-        return false;
-    }
-
-    public boolean removeStatFromStatsDisplay(String statsKey, UUID id) {
-        if (statsDisplays.containsKey(id)) {
-            statsDisplays.get(id).remove(statsKey);
-
-            getConfig().set("statsDisplays." + id, statsDisplays.get(id));
-            saveConfig();
-
-            updateStatsComponent(id);
-            return true;
-        }
-        return false;
-    }
-
-    public void removeDisplayEntity(UUID id) {
-        Entity entity = Bukkit.getEntity(id);
-        if (entity instanceof TextDisplay display && display.isValid()) {
-            display.remove();
-        }
-
-        Map<UUID, List<String>> statsDisplayCopy = new HashMap<>(statsDisplays);
-        statsDisplayCopy.forEach((display, statsKeys) -> {
-            if (display.equals(id)) {
-                statsDisplays.remove(display);
-                getConfig().set("statsDisplays." + id, null);
-            }
-        });
-        saveConfig();
-    }
-
-    public Component getCombinedText(LinkedList<Component> components, String seperator) {
-        Component combinedText = Component.empty();
-        boolean first = true;
-        for (Component component : components) {
-            if (!first) {
-                combinedText = combinedText.append(Component.text(seperator));
-            }
-            first = false;
-            combinedText = combinedText.append(component);
-        }
-        return combinedText;
-    }
-
-    public String getCombinedString(LinkedList<String> components, String seperator) {
+    public String getCombinedString(LinkedList<String> components, String separator) {
         StringBuilder combinedText = new StringBuilder();
         boolean first = true;
         for (String component : components) {
             if (!first) {
-                combinedText.append(seperator);
+                combinedText.append(separator);
             }
             first = false;
             combinedText.append(component);
         }
         return combinedText.toString();
-    }
-
-    public void updateStatsComponent(UUID id) {
-        LinkedList<Component> components = new LinkedList<>();
-        components.add(Component.text("Insgesamt: ", Style.style(TextColor.color(0xFF1493), TextDecoration.BOLD)));
-
-        List<String> statsKeys = statsDisplays.get(id);
-        if (statsKeys.isEmpty()) {
-            allTimeStats.put(id, getCombinedText(components, "\n"));
-            updateDisplayEntity(id);
-            return;
-        }
-        statsKeys.forEach(statsKey -> {
-            GlobalStatisticKey key = cubesideStatistics.getGlobalStatisticKey(statsKey, false);
-            if (key != null) {
-                cubesideStatistics.getGlobalStatistics().getValue(key, TimeFrame.ALL_TIME, allTime -> {
-                    components.add(Component.text(allTime, NamedTextColor.YELLOW).append(Component.text(" " + key.getDisplayName(), NamedTextColor.GOLD)));
-                    allTimeStats.put(id, getCombinedText(components, "\n"));
-                    updateDisplayEntity(id);
-                });
-            }
-        });
-    }
-
-    public void updateDisplayEntities() {
-        statsDisplays.keySet().forEach(this::updateDisplayEntity);
-    }
-
-    public void updateDisplayEntity(UUID id) {
-        TextDisplay textDisplay = null;
-
-        if (statsDisplays.containsKey(id)) {
-            Entity entity = Bukkit.getEntity(id);
-            if (entity instanceof TextDisplay display && display.isValid()) {
-                textDisplay = display;
-            }
-        }
-
-        if (textDisplay == null) {
-            return;
-        }
-
-        Component component = allTimeStats.getOrDefault(id, Component.empty());
-
-        textDisplay.text(component);
     }
 
     public boolean isWorldLogged(World world) {
@@ -614,12 +563,36 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return schweinereiterChunks.computeIfAbsent(world.getName(), world2 -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
     }
 
+    public KnownWorldPlayerChunks getKnownWorldschreiterReiterLocations(World world) {
+        return schreiterReiterChunks.computeIfAbsent(world.getName(), world2 -> new KnownWorldPlayerChunks(this, world2, "schreiterreiter"));
+    }
+
+    public KnownWorldMultiChunks getKnownWorldHalloweenMonsterkillingLocations(World world) {
+        return halloweenMonsterkillingChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiChunks(this, world2, 30, "halloween_2025_monsterkilling"));
+    }
+
     public KnownWorldOreLocations getKnownWorldGrasscutLocations(World world) {
         return getKnownWorldGrasscutLocations(world.getName());
     }
 
     public KnownWorldOreLocations getKnownWorldGrasscutLocations(String world) {
         return previousGrasscutLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "grass"));
+    }
+
+    public KnownWorldOreLocations getKnownWorldEventOreLocations(World world) {
+        return getKnownWorldEventOreLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldEventOreLocations(String world) {
+        return previousEventLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "halloween_2025_ore"));
+    }
+
+    public KnownWorldOreLocations getKnownWorldEventLogLocations(World world) {
+        return getKnownWorldEventLogLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldEventLogLocations(String world) {
+        return previousEventLogLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "halloween_2025_log"));
     }
 
     public boolean isNowInEvent() {
@@ -657,6 +630,18 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isFly(EntityType type) {
         return flySwatterMobs.contains(type);
+    }
+
+    public boolean isHalloweenMonster(EntityType type) {
+        return halloweenMonsterKillingStatsKeysMap.containsKey(type);
+    }
+
+    public boolean isHalloweenMiningMaterial(Material type) {
+        return halloweenMiningMaterials.contains(type);
+    }
+
+    public boolean isHalloweenNetherbaumMaterial(Material type) {
+        return halloweenNetherbaumMaterials.contains(type);
     }
 
     public boolean isVeggie(Material material, boolean communityEvent) {
@@ -802,5 +787,64 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             locations.removeLast();
         }
         communityEventveggieLocationsPlayer.put(uuid, locations);
+    }
+
+    public void addHalloweenMiningScore(Player p) {
+        UUID uuid = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(halloween2025PlayerMiningStatsKey, 1);
+        globalStatistic.increaseValue(halloween2025CommunityMiningStatsKey, 1);
+    }
+
+    public void addHalloweenKillingScore(Player p, EntityType entityType) {
+        List<Object> statKeys = halloweenMonsterKillingStatsKeysMap.get(entityType);
+
+        UUID uuid = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore((StatisticKey) statKeys.getFirst(), 1);
+        globalStatistic.increaseValue((GlobalStatisticKey) statKeys.getLast(), 1);
+    }
+
+    public void addHalloweenSchreiterreiterScore(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(halloween2025PlayerSchreiterreiterStatsKey, 1);
+        globalStatistic.increaseValue(halloween2025CommunitySchreiterreiterStatsKey, 1);
+    }
+
+    public void addHalloweenNetherbaumScore(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(halloween2025PlayerNetherbaumStatsKey, 1);
+        globalStatistic.increaseValue(halloween2025CommunityNetherbaumStatsKey, 1);
+    }
+
+    public void addHalloweenNetherwarzenScore(Player p, Location location) {
+        UUID playerId = p.getUniqueId();
+
+        communityEventveggieLocationsPlayer.putIfAbsent(playerId, new LinkedList<>());
+        LinkedList<Location> locations = communityEventveggieLocationsPlayer.get(playerId);
+        if (locations.contains(location)) {
+            return;
+        }
+        locations.addFirst(location);
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(halloween2025PlayerNetherwarzenStatsKey, 1);
+        globalStatistic.increaseValue(halloween2025CommunityNetherwarzenStatsKey, 1);
+
+        if (locations.size() > 50) {
+            locations.removeLast();
+        }
+        communityEventveggieLocationsPlayer.put(playerId, locations);
     }
 }

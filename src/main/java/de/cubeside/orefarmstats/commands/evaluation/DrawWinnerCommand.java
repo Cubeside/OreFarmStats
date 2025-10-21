@@ -1,4 +1,4 @@
-package de.cubeside.orefarmstats.commands;
+package de.cubeside.orefarmstats.commands.evaluation;
 
 import de.cubeside.orefarmstats.OreFarmStatsPlugin;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
@@ -6,64 +6,92 @@ import de.iani.cubesidestats.api.GlobalStatisticKey;
 import de.iani.cubesidestats.api.PlayerWithScore;
 import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
+import de.iani.cubesideutils.HastebinUtil;
 import de.iani.cubesideutils.bukkit.commands.SubCommand;
-import de.iani.cubesideutils.bukkit.plugin.CubesideUtilsBukkit;
 import de.iani.cubesideutils.commands.ArgsParser;
 import de.iani.playerUUIDCache.PlayerUUIDCache;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public class DrawWinnerCommand extends SubCommand {
 
     private final OreFarmStatsPlugin plugin;
     private PlayerUUIDCache playerUUIDCache;
-    private Set<UUID> addtionalParticipants;
+    private Map<UUID, Integer> addtionalParticipants;
 
     public DrawWinnerCommand(OreFarmStatsPlugin plugin) {
         this.plugin = plugin;
         this.playerUUIDCache = (PlayerUUIDCache) Bukkit.getServer().getPluginManager().getPlugin("PlayerUUIDCache");
-        this.addtionalParticipants = new HashSet<>();
+        this.addtionalParticipants = new HashMap<>();
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String alias, String commandString, ArgsParser args) {
         // Zusätzliche Teilnehmer (Stimmenanteil = 1 / alle zusätzlichen Teilnehmer)
-        if (args.hasNext() && args.getNext().equals("addParticipants")) {
+        String nextSubcommand = "";
+        if (args.hasNext()) {
+            nextSubcommand = args.getNext();
+        }
+        if (nextSubcommand.equals("addParticipants")) {
             if (!args.hasNext()) {
                 sender.sendMessage(Component.text(commandString + this.getUsage()).color((NamedTextColor.DARK_RED)));
                 return true;
             }
-            Set<UUID> playersToAdd = new HashSet<>();
+            HashMap<UUID, Integer> playersToAdd = new HashMap<>();
+            int lastWeight = 1;
             while (args.hasNext()) {
-                String playerName = args.getNext();
-                if (playerUUIDCache.getPlayer(playerName) == null) {
-                    sender.sendMessage(Component.text("Spieler " + playerName + " ist unbekannt.").color(NamedTextColor.RED));
-                    return true;
+                String arg = args.getNext();
+                try {
+                    lastWeight = Integer.parseInt(arg);
+                } catch (NumberFormatException e) {
+                    if (playerUUIDCache.getPlayer(arg) == null) {
+                        sender.sendMessage(Component.text("Spieler " + arg + " ist unbekannt. Spieler wurden nicht hinzugefügt.").color(NamedTextColor.RED));
+                        return true;
+                    }
+                    UUID playerId = playerUUIDCache.getPlayer(arg).getUniqueId();
+                    playersToAdd.put(playerId, lastWeight);
                 }
-                UUID playerId = playerUUIDCache.getPlayer(playerName).getUniqueId();
-                playersToAdd.add(playerId);
             }
-            addtionalParticipants.addAll(playersToAdd);
+            addtionalParticipants.putAll(playersToAdd);
             if (!playersToAdd.isEmpty()) {
                 sender.sendMessage(Component.text("Spieler wurden hinzugefügt.").color((NamedTextColor.DARK_GREEN)));
+            }
+            return true;
+        } else if (nextSubcommand.equals("listParticipants")) {
+            Map<Integer, List<String>> playersToWeights = new HashMap<>();
+            addtionalParticipants.forEach((playerId, weight) -> {
+                playersToWeights.putIfAbsent(weight, new ArrayList<>());
+                playersToWeights.get(weight).add(playerUUIDCache.getPlayer(playerId).getName());
+            });
+            sender.sendMessage(Component.text("Hinzugefügte Spieler:", Style.style(NamedTextColor.DARK_GREEN, TextDecoration.UNDERLINED)));
+            playersToWeights.forEach((weight, players) ->
+                sender.sendMessage(
+                        Component.text(String.format("Gewicht %d: ", weight)).color(NamedTextColor.GOLD)
+                                .append(Component.text(Arrays.toString(players.toArray())).color(NamedTextColor.WHITE))
+                )
+            );
+            if (playersToWeights.isEmpty()) {
+                sender.sendMessage(Component.text("Keine").color(NamedTextColor.RED));
             }
             return true;
         }
@@ -74,7 +102,7 @@ public class DrawWinnerCommand extends SubCommand {
             return true;
         }
 
-        CubesideStatisticsAPI cubesideStatistics = plugin.getStatistics();
+        CubesideStatisticsAPI cubesideStatistics = plugin.getStatsDisplayManager().getStatistics();
         if (cubesideStatistics == null) {
             sender.sendMessage(Component.text("CubesideStatisticsAPI aktuell nicht verfügbar.").color(NamedTextColor.RED));
             return true;
@@ -83,8 +111,9 @@ public class DrawWinnerCommand extends SubCommand {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, task -> {
             Map<String, Map<UUID, Double>> allPlayerScores = new HashMap<>();
             Map<UUID, Double> aP = new HashMap<>();
-            addtionalParticipants.forEach(playerId -> {
-                aP.put(playerId, 1d / addtionalParticipants.size());
+            double weightSum = addtionalParticipants.values().stream().reduce(0, Integer::sum);
+            addtionalParticipants.forEach((playerId,weight) -> {
+                aP.put(playerId, weight / weightSum);
             });
             allPlayerScores.put("extra", aP);
             List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -159,16 +188,6 @@ public class DrawWinnerCommand extends SubCommand {
                 Map<UUID, Double> sortedPlayerScoreSums = playerScoreSums.entrySet().stream().sorted(Map.Entry.<UUID, Double> comparingByValue().reversed())
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new));
 
-                // Gewinnwahrscheinlichkeiten jedes Spielers berechnen
-                LinkedList<String> components = new LinkedList<>();
-                sortedPlayerScoreSums.forEach((id, score) -> {
-                    String name = playerUUIDCache.getPlayer(id).getName();
-                    if (name != null) {
-                        components.add(name + " " + ((double) Math.round((score * 10000f) / sumAllPlayerPoints)) / 100 + "%");
-                    }
-                });
-                CubesideUtilsBukkit.getInstance().getLogger().log(Level.INFO, "Gewinnwahrscheinlichkeiten: " + plugin.getCombinedString(components, ", "));
-
                 // Gewinnzahl ziehen
                 double winningNumber = (new Random()).nextDouble() * sumAllPlayerPoints;
                 UUID winner = null;
@@ -199,11 +218,41 @@ public class DrawWinnerCommand extends SubCommand {
                     return;
                 }
                 sender.sendMessage(Component.text("Der Gewinner ist ").color(NamedTextColor.DARK_GREEN).append(Component.text(winnerName).color(NamedTextColor.RED))
-                        .append(Component.text(". Gewinnchancen pro Spieler stehen im Log.").color(NamedTextColor.DARK_GREEN)));
+                        .append(Component.text(".").color(NamedTextColor.DARK_GREEN)));
                 if (!this.addtionalParticipants.isEmpty()) {
                     sender.sendMessage(Component.text("Zusätzliche Teilnehmer wurden entfernt.").color((NamedTextColor.DARK_GREEN)));
                 }
                 this.addtionalParticipants.clear();
+
+                new BukkitRunnable() {
+
+                    @Override
+                    public void run() {
+                        // Gewinnwahrscheinlichkeiten jedes Spielers berechnen
+                        LinkedList<String> components = new LinkedList<>();
+                        sortedPlayerScoreSums.forEach((id, score) -> {
+                            String name = playerUUIDCache.getPlayer(id).getName();
+                            if (name != null) {
+                                components.add(name + " " + ((double) Math.round((score * 10000f) / sumAllPlayerPoints)) / 100 + "%");
+                            }
+                        });
+
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("Gewinnwahrscheinlichkeiten:\n" + plugin.getCombinedString(components, "\n"));
+                        HastebinUtil.paste(sb.toString(), new HastebinUtil.PasteCompletedListener() {
+                            @Override
+                            public void onSuccess(String url) {
+                                sender.sendMessage("Die Gewinnchancen wurden gespeichert als " + url);
+                            }
+
+                            @Override
+                            public void onError(Exception exception) {
+                                sender.sendMessage("Die Gewinnchancen konnten nicht gespeichert werden: " + exception.getMessage());
+                                plugin.getLogger().log(Level.SEVERE, "Could not paste winning chances report", exception);
+                            }
+                        });
+                    }
+                }.runTaskAsynchronously(plugin);
             }));
         });
 
@@ -220,6 +269,7 @@ public class DrawWinnerCommand extends SubCommand {
         if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
             str.add("addParticipants");
+            str.add("listParticipants");
             return str;
         }
         return new ArrayList<>();

@@ -1,6 +1,6 @@
-package de.cubeside.orefarmstats.commands;
+package de.cubeside.orefarmstats.commands.statsDisplay;
 
-import de.cubeside.orefarmstats.OreFarmStatsPlugin;
+import de.cubeside.orefarmstats.StatsDisplayManager;
 import de.iani.cubesideutils.bukkit.commands.SubCommand;
 import de.iani.cubesideutils.commands.ArgsParser;
 import java.util.ArrayList;
@@ -18,15 +18,15 @@ import org.bukkit.command.CommandSender;
 
 public class ListStatsDisplayCommand extends SubCommand {
 
-    private final OreFarmStatsPlugin plugin;
+    private final StatsDisplayManager statsDisplayManager;
 
-    public ListStatsDisplayCommand(OreFarmStatsPlugin plugin) {
-        this.plugin = plugin;
+    public ListStatsDisplayCommand(StatsDisplayManager statsDisplayManager) {
+        this.statsDisplayManager = statsDisplayManager;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String alias, String commandString, ArgsParser args) {
-        LinkedHashMap<UUID, List<String>> statsDisplays = plugin.getStatsDisplays();
+        LinkedHashMap<UUID, List<String>> statsDisplays = statsDisplayManager.getStatsDisplaysCopy();
         LinkedList<Component> components = new LinkedList<>();
         components.add(Component.text("Stats-Displays in Verwendung:", Style.style(NamedTextColor.DARK_GREEN, TextDecoration.UNDERLINED)));
         if (statsDisplays.isEmpty()) {
@@ -40,7 +40,7 @@ public class ListStatsDisplayCommand extends SubCommand {
                 components.add(Component.text(String.join("\n", statsDisplays.get(id))));
             }
         }
-        sender.sendMessage(plugin.getCombinedText(components, "\n"));
+        sender.sendMessage(statsDisplayManager.getCombinedText(components, "\n"));
 
         return true;
     }

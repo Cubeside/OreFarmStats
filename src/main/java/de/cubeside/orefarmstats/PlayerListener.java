@@ -1,17 +1,14 @@
 package de.cubeside.orefarmstats;
 
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Boat;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Strider;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -23,7 +20,6 @@ import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.inventory.ItemStack;
 
 public class PlayerListener implements Listener {
@@ -84,7 +80,7 @@ public class PlayerListener implements Listener {
                 plugin.addGrassCut(e.getPlayer());
             }
         }
-*/
+
         if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
             if (e.getBlock().getBlockData() instanceof Ageable ageable) {
                 if (ageable.getAge() == ageable.getMaximumAge()) {
@@ -94,16 +90,62 @@ public class PlayerListener implements Listener {
                 plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
             }
         }
+ */
+        if (!plugin.isNowInEvent()) {
+            return;
+        }
+
+        if (plugin.isHalloweenMiningMaterial(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            if (plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc)) {
+                plugin.addHalloweenMiningScore(e.getPlayer());
+            }
+        }
+
+        if (material == Material.NETHER_WART) {
+            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+                Location loc = e.getBlock().getLocation();
+                if (ageable.getAge() == ageable.getMaximumAge()) {
+                    plugin.addHalloweenNetherwarzenScore(e.getPlayer(), e.getBlock().getLocation());
+                }
+            }
+
+        }
+
+        if (plugin.isHalloweenNetherbaumMaterial(material)) {
+            Location loc = e.getBlock().getLocation();
+            if (!plugin.getKnownWorldEventLogLocations(loc.getWorld()).remove(loc)) {
+                ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
+                if (tool == null || tool.getEnchantmentLevel(Enchantment.EFFICIENCY) <= 5) {
+                    plugin.addHalloweenNetherbaumScore(e.getPlayer());
+                }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDeath(EntityDeathEvent e) {
-        EntityType type = e.getEntity().getType();
         Player player = e.getEntity().getKiller();
 
+        if (player == null) {
+            return;
+        }
+
+        ItemStack itemInHand = player.getInventory().getItemInMainHand();
+        EntityType monster = e.getEntityType();
+
+        if (plugin.isNowInEvent() && plugin.isHalloweenMonster(monster) && itemInHand.getType() == Material.SUGAR) {
+            Location loc = e.getEntity().getLocation();
+            if (plugin.getKnownWorldHalloweenMonsterkillingLocations(loc.getWorld()).add(player.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                plugin.addHalloweenKillingScore(player, monster);
+            }
+        }
+
+        /*
         if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
             plugin.addFlySwat(player);
         }
+        */
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -120,6 +162,17 @@ public class PlayerListener implements Listener {
             Location loc = e.getBlock().getLocation();
             plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc);
         }
+        if (!plugin.isNowInEvent()) {
+            return;
+        }
+        if (plugin.isHalloweenMiningMaterial(e.getBlock().getType()) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc);
+        }
+        if (plugin.isHalloweenNetherbaumMaterial(e.getBlock().getType())) {
+            Location loc = e.getBlock().getLocation();
+            plugin.getKnownWorldEventLogLocations(loc.getWorld()).add(loc);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -130,10 +183,23 @@ public class PlayerListener implements Listener {
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
             }
-            if (plugin.isLog(e.getBlock().getType())) {
+            if (plugin.isLog(b.getType())) {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
+            }
+            if (!plugin.isNowInEvent()) {
+                return;
+            }
+            if (plugin.isHalloweenMiningMaterial(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc);
+            }
+            if (plugin.isHalloweenNetherbaumMaterial(b.getType())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldEventLogLocations(loc.getWorld()).add(loc);
             }
         }
     }
@@ -146,10 +212,23 @@ public class PlayerListener implements Listener {
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldOreLocations(loc.getWorld()).add(loc);
             }
-            if (plugin.isLog(e.getBlock().getType())) {
+            if (plugin.isLog(b.getType())) {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
+            }
+            if (!plugin.isNowInEvent()) {
+                return;
+            }
+            if (plugin.isHalloweenMiningMaterial(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc);
+            }
+            if (plugin.isHalloweenNetherbaumMaterial(b.getType())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldEventLogLocations(loc.getWorld()).add(loc);
             }
         }
     }
@@ -192,16 +271,16 @@ public class PlayerListener implements Listener {
 
     public void onTick() {
         for (Player p : plugin.getServer().getOnlinePlayers()) {
-            if (p.getVehicle() instanceof Pig && p.getWorld().getEnvironment() == Environment.NETHER && plugin.isNowInEvent()) {
+            if (p.getVehicle() instanceof Strider && p.getWorld().getEnvironment() == Environment.NETHER && plugin.isNowInEvent()) {
                 Location loc = p.getLocation();
-                if (plugin.getKnownWorldSchweinereiterLocations(loc.getWorld()).add(p.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
-                    // plugin.getLogger().info("Player " + p.getName() + " moved on pig");
-                    plugin.addSchweinereitenScore(p);
+                if (plugin.getKnownWorldschreiterReiterLocations(loc.getWorld()).add(p.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                    // plugin.getLogger().info("Player " + p.getName() + " moved on strider");
+                    plugin.addHalloweenSchreiterreiterScore(p);
                 }
             }
         }
     }
-
+/*
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onVehicleMove(VehicleMoveEvent e) {
         if (plugin.isNowInEvent()) {
@@ -225,4 +304,5 @@ public class PlayerListener implements Listener {
             }
         }
     }
+*/
 }

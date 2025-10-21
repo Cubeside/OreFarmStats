@@ -1,6 +1,6 @@
-package de.cubeside.orefarmstats.commands;
+package de.cubeside.orefarmstats.commands.statsDisplay;
 
-import de.cubeside.orefarmstats.OreFarmStatsPlugin;
+import de.cubeside.orefarmstats.StatsDisplayManager;
 import de.iani.cubesidestats.api.GlobalStatisticKey;
 import de.iani.cubesideutils.bukkit.commands.SubCommand;
 import de.iani.cubesideutils.commands.ArgsParser;
@@ -13,10 +13,10 @@ import org.bukkit.entity.Player;
 
 public class CreateStatsDisplayCommand extends SubCommand {
 
-    private final OreFarmStatsPlugin plugin;
+    private final StatsDisplayManager statsDisplayManager;
 
-    public CreateStatsDisplayCommand(OreFarmStatsPlugin plugin) {
-        this.plugin = plugin;
+    public CreateStatsDisplayCommand(StatsDisplayManager statsDisplayManager) {
+        this.statsDisplayManager = statsDisplayManager;
     }
 
     @Override
@@ -32,12 +32,12 @@ public class CreateStatsDisplayCommand extends SubCommand {
         }
 
         String statsKey = args.getNext();
-        if (!plugin.existGlobalStatsKey(statsKey)) {
+        if (!statsDisplayManager.hasGlobalStatsKey(statsKey)) {
             sender.sendMessage(Component.text("Key existiert nicht.").color(NamedTextColor.RED));
             return true;
         }
 
-        plugin.createDisplayEntity(player.getLocation(), statsKey);
+        statsDisplayManager.createDisplayEntity(player.getLocation(), statsKey);
         sender.sendMessage(Component.text("Stats-Display wurde gespawnt.").color(NamedTextColor.DARK_GREEN));
         return true;
     }
@@ -51,7 +51,7 @@ public class CreateStatsDisplayCommand extends SubCommand {
         }
         if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
-            for (GlobalStatisticKey gsk : plugin.getGlobalStatsKeys()) {
+            for (GlobalStatisticKey gsk : statsDisplayManager.getGlobalStatsKeys()) {
                 str.add(gsk.getName());
             }
             return str;

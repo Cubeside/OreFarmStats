@@ -1,14 +1,17 @@
 worlds:
     - '*'
 updateEventStatsSum: false
+event:
+    start: "2025-10-23 00:00:00"
+    end: "2025-11-02 19:00:00"
 lottery:
     applicableStatKeys:
-        herbstfest_2025_karotten: 7
-        herbstfest_2025_kartoffeln: 7
-        herbstfest_2025_rotebete: 7
-        herbstfest_2025_weizen: 7
-        herbstfest_2025_melonen: 7
-        herbstfest_2025_kuerbisse: 7
-        herbstfest_2025_kakaobohnen: 7
-        herbstfest_2025_arcade: 1
+        halloween_2025_halloweenghosts: 1
+        halloween_2025_creeper: 2
+        halloween_2025_phantome: 2
+        halloween_2025_mining: 1
+        halloween_2025_mobarena: 1
+        halloween_2025_netherbaeume: 1
+        halloween_2025_netherwarzen: 1
+        halloween_2025_schreitereiter: 1
 statsDisplays: {}

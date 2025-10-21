@@ -1,6 +1,6 @@
-package de.cubeside.orefarmstats.commands;
+package de.cubeside.orefarmstats.commands.statsDisplay;
 
-import de.cubeside.orefarmstats.OreFarmStatsPlugin;
+import de.cubeside.orefarmstats.StatsDisplayManager;
 import de.iani.cubesidestats.api.GlobalStatisticKey;
 import de.iani.cubesideutils.bukkit.commands.SubCommand;
 import de.iani.cubesideutils.commands.ArgsParser;
@@ -15,10 +15,10 @@ import org.bukkit.command.CommandSender;
 
 public class AddToStatsDisplayCommand extends SubCommand {
 
-    private final OreFarmStatsPlugin plugin;
+    private final StatsDisplayManager statsDisplayManager;
 
-    public AddToStatsDisplayCommand(OreFarmStatsPlugin plugin) {
-        this.plugin = plugin;
+    public AddToStatsDisplayCommand(StatsDisplayManager statsDisplayManager) {
+        this.statsDisplayManager = statsDisplayManager;
     }
 
     @Override
@@ -39,11 +39,11 @@ public class AddToStatsDisplayCommand extends SubCommand {
             return true;
         }
         String statsKey = args.getNext();
-        if (!plugin.existGlobalStatsKey(statsKey)) {
+        if (!statsDisplayManager.hasGlobalStatsKey(statsKey)) {
             sender.sendMessage(Component.text("Key existiert nicht.").color(NamedTextColor.RED));
             return true;
         }
-        LinkedHashMap<UUID, List<String>> statsDisplays = plugin.getStatsDisplays();
+        LinkedHashMap<UUID, List<String>> statsDisplays = statsDisplayManager.getStatsDisplaysCopy();
         List<UUID> ids = new ArrayList<>(statsDisplays.keySet());
         if (!ids.isEmpty() && nr < ids.size()) {
             UUID id = ids.get(nr);
@@ -51,7 +51,7 @@ public class AddToStatsDisplayCommand extends SubCommand {
                 sender.sendMessage(Component.text("Key bereits im Display enthalten.").color(NamedTextColor.RED));
                 return true;
             }
-            if (plugin.addStatToStatsDisplay(statsKey, id)) {
+            if (statsDisplayManager.addStatToStatsDisplay(statsKey, id)) {
                 sender.sendMessage(Component.text("Key zum Display hinzugefügt.").color(NamedTextColor.DARK_GREEN));
             }
         } else {
@@ -70,13 +70,13 @@ public class AddToStatsDisplayCommand extends SubCommand {
         }
         if (i == 2) {
             ArrayList<String> str = new ArrayList<>();
-            for (GlobalStatisticKey gsk : plugin.getGlobalStatsKeys()) {
+            for (GlobalStatisticKey gsk : statsDisplayManager.getGlobalStatsKeys()) {
                 str.add(gsk.getName());
             }
             return str;
         } else if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
-            int amount = plugin.amountStatsDisplays();
+            int amount = statsDisplayManager.amountStatsDisplays();
             for (int id = 1; id <= amount; id++) {
                 str.add(String.valueOf(id));
             }
