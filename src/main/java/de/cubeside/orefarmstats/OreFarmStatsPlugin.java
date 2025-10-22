@@ -266,20 +266,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         Calendar c = Calendar.getInstance();
         c.set(Calendar.MILLISECOND, 0);
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        ConfigurationSection eventSection = getConfig().getConfigurationSection("event");
-        if (eventSection != null) {
-            try {
-                c.setTime(format.parse(eventSection.getString("start")));
-                eventStartMillis = c.getTimeInMillis();
-                c.setTime(format.parse(eventSection.getString("end")));
-                eventEndMillis = c.getTimeInMillis();
-            } catch (ParseException e) {
-                getLogger().log(Level.SEVERE, "Date and Time could not be parsed from config.");
-                eventStartMillis = 0L;
-                eventEndMillis = 0L;
-            }
-        }
+        c.set(2025, Calendar.OCTOBER, 23, 0, 0, 0);
+        eventStartMillis = c.getTimeInMillis();
+        c.set(2025, Calendar.NOVEMBER, 2, 19, 0, 0);
+        eventEndMillis = c.getTimeInMillis();
 
         oreStatsKey = cubesideStatistics.getStatisticKey("farmstats.ore");
         oreStatsKey.setDisplayName("Erze gemint");
