@@ -1,4 +1,4 @@
-package de.cubeside.orefarmstats.commands.evaluation;
+package de.cubeside.orefarmstats.commands.lottery;
 
 import de.cubeside.orefarmstats.OreFarmStatsPlugin;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +95,12 @@ public class DrawWinnerCommand extends SubCommand {
                 sender.sendMessage(Component.text("Keine").color(NamedTextColor.RED));
             }
             return true;
+        } else if (nextSubcommand.equals("clearParticipants")) {
+            addtionalParticipants.clear();
+            sender.sendMessage(Component.text("Zusätzlich hinzugefügte Spieler entfernt.").color(NamedTextColor.DARK_GREEN));
+            return true;
         }
+
         // GlobalStatsKey und StatsKey müssen den selben Namen haben, sonst funktioniert es nicht
         ConfigurationSection section = plugin.getConfig().getConfigurationSection("lottery");
         if (section == null) {
@@ -188,41 +194,60 @@ public class DrawWinnerCommand extends SubCommand {
                 Map<UUID, Double> sortedPlayerScoreSums = playerScoreSums.entrySet().stream().sorted(Map.Entry.<UUID, Double> comparingByValue().reversed())
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new));
 
-                // Gewinnzahl ziehen
-                double winningNumber = (new Random()).nextDouble() * sumAllPlayerPoints;
-                UUID winner = null;
+                LinkedHashSet<UUID> winners = new LinkedHashSet<>();
+                int amountWinners = 1;
+                if (args.hasNext()) {
+                    amountWinners = Math.min(args.getNext(1), sortedPlayerScoreSums.size());
+                }
 
-                // Gewinner bestimmen
-                Iterator<Map.Entry<UUID, Double>> scoreSums = sortedPlayerScoreSums.entrySet().iterator();
-                double sumPlayerScores = 0;
-                while (scoreSums.hasNext() && winner == null) {
-                    Map.Entry<UUID, Double> playerScore = scoreSums.next();
-                    sumPlayerScores += playerScore.getValue();
-                    if (sumPlayerScores >= winningNumber) {
-                        winner = playerScore.getKey();
+                Map<UUID, Double> currentSortedPlayerScoreSums = new LinkedHashMap<>(sortedPlayerScoreSums);
+                double currentSumAllPlayerPoints = sumAllPlayerPoints;
+                while (winners.size() < amountWinners) {
+                    // Gewinnzahl ziehen
+                    double winningNumber = (new Random()).nextDouble() * currentSumAllPlayerPoints;
+                    UUID winner = null;
+
+                    // Gewinner bestimmen
+                    Iterator<Map.Entry<UUID, Double>> scoreSums = currentSortedPlayerScoreSums.entrySet().iterator();
+                    double sumPlayerScores = 0;
+                    while (scoreSums.hasNext() && winner == null) {
+                        Map.Entry<UUID, Double> playerScore = scoreSums.next();
+                        sumPlayerScores += playerScore.getValue();
+                        if (sumPlayerScores >= winningNumber) {
+                            winner = playerScore.getKey();
+                            currentSumAllPlayerPoints -= currentSortedPlayerScoreSums.remove(winner);
+                        }
                     }
+
+                    // Falls kein Gewinner ermittelt werden konnte
+                    if (winner == null) {
+                        sender.sendMessage(Component.text("So viele Gewinner konnten nicht ermittelt werden.").color(NamedTextColor.RED));
+                        break;
+                    }
+
+                    winners.add(winner);
                 }
 
-                // Falls kein Gewinner ermittelt werden konnte
-                if (winner == null) {
-                    sender.sendMessage(Component.text("Es konnte kein Gewinner ermittelt werden.").color(NamedTextColor.RED));
+                if (winners.isEmpty()) {
+                    sender.sendMessage(Component.text("So viele Gewinner konnten nicht ermittelt werden.").color(NamedTextColor.RED));
                     taskFutures.cancel();
                     return;
                 }
 
-                // Gewinnerausgabe
-                String winnerName = playerUUIDCache.getPlayer(winner).getName();
-                if (winnerName == null) {
-                    sender.sendMessage(Component.text("Es konnte kein Name zum Gewinner ermittelt werden.").color(NamedTextColor.RED));
-                    taskFutures.cancel();
-                    return;
-                }
-                sender.sendMessage(Component.text("Der Gewinner ist ").color(NamedTextColor.DARK_GREEN).append(Component.text(winnerName).color(NamedTextColor.RED))
-                        .append(Component.text(".").color(NamedTextColor.DARK_GREEN)));
-                if (!this.addtionalParticipants.isEmpty()) {
-                    sender.sendMessage(Component.text("Zusätzliche Teilnehmer wurden entfernt.").color((NamedTextColor.DARK_GREEN)));
-                }
-                this.addtionalParticipants.clear();
+                LinkedList<Component> components = new LinkedList<>();
+                winners.forEach(winner -> {
+                    // Gewinnerausgabe
+                    String winnerName = playerUUIDCache.getPlayer(winner).getName();
+                    if (winnerName == null) {
+                        sender.sendMessage(Component.text("Es konnte kein Name zu einem Gewinner ermittelt werden.").color(NamedTextColor.RED));
+                        taskFutures.cancel();
+                        return;
+                    }
+                    components.add(Component.text("Der " + (components.size() + 1) + ". Platz ist ").color(NamedTextColor.DARK_GREEN).append(Component.text(winnerName).color(NamedTextColor.RED))
+                            .append(Component.text(".").color(NamedTextColor.DARK_GREEN)));
+                });
+
+                sender.sendMessage(getCombinedText(components, "\n"));
 
                 new BukkitRunnable() {
 
@@ -259,6 +284,19 @@ public class DrawWinnerCommand extends SubCommand {
         return true;
     }
 
+    public Component getCombinedText(LinkedList<Component> components, String separator) {
+        Component combinedText = Component.empty();
+        boolean first = true;
+        for (Component component : components) {
+            if (!first) {
+                combinedText = combinedText.append(Component.text(separator));
+            }
+            first = false;
+            combinedText = combinedText.append(component);
+        }
+        return combinedText;
+    }
+
     @Override
     public ArrayList<String> onTabComplete(CommandSender sender, Command command, String alias, ArgsParser args) {
         int i = 0;
@@ -269,7 +307,9 @@ public class DrawWinnerCommand extends SubCommand {
         if (i == 1) {
             ArrayList<String> str = new ArrayList<>();
             str.add("addParticipants");
+            str.add("clearParticipants");
             str.add("listParticipants");
+            str.add("drawWinners");
             return str;
         }
         return new ArrayList<>();
@@ -282,6 +322,6 @@ public class DrawWinnerCommand extends SubCommand {
 
     @Override
     public String getUsage() {
-        return "(addParticipants <spieler> [<spieler2> ...])";
+        return "[(addParticipants <gewicht> <spieler> [[<spieler2> ...] | <gewicht2> <spieler2> ...]) | clearParticipants | listParticipants | (drawWinners <anzahl>)]";
     }
 }

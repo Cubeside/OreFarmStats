@@ -1,8 +1,11 @@
 package de.cubeside.orefarmstats;
 
+import de.cubeside.orefarmstats.commands.lottery.ClearLotteryStatsKeysCommand;
+import de.cubeside.orefarmstats.commands.lottery.ListLotteryStatsKeysCommand;
+import de.cubeside.orefarmstats.commands.lottery.SetLotteryStatsKeysCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.AddToStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.CreateStatsDisplayCommand;
-import de.cubeside.orefarmstats.commands.evaluation.DrawWinnerCommand;
+import de.cubeside.orefarmstats.commands.lottery.DrawWinnerCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.ListStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.RemoveFromStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.RemoveStatsDisplayCommand;
@@ -19,9 +22,8 @@ import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
 import de.iani.cubesideutils.bukkit.commands.CommandRouter;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,13 +33,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Level;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.damage.DamageType;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -48,10 +48,6 @@ import org.jetbrains.annotations.Nullable;
 public class OreFarmStatsPlugin extends JavaPlugin {
 
     private StatsDisplayManager statsDisplays;
-
-    // TODO Eiskratzermonat:
-    // alle Eistypen
-    // Schneeblöcke, Schneeteppiche, Puderschnee (Eimer Event beachten)
 
     private final HashMap<String, KnownWorldOreLocations> previousLocations = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousEventLocations = new HashMap<>();
@@ -149,7 +145,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         router.addCommandMapping(new RemoveFromStatsDisplayCommand(statsDisplays), "statsDisplay", "removeStatFrom");
         router.addCommandMapping(new SetStatsDisplayHeadlineCommand(statsDisplays), "statsDisplay", "setHeadline");
         router.addCommandMapping(new SetStatTextOnDisplayCommand(statsDisplays), "statsDisplay", "setStatTextOn");
-        router.addCommandMapping(new DrawWinnerCommand(this), "drawWinner");
+        router.addCommandMapping(new DrawWinnerCommand(this), "lottery");
+        router.addCommandMapping(new SetLotteryStatsKeysCommand(this), "lottery", "setKeys");
+        router.addCommandMapping(new ClearLotteryStatsKeysCommand(this), "lottery", "clearKeys");
+        router.addCommandMapping(new ListLotteryStatsKeysCommand(this), "lottery", "listKeys");
 
         deepOreMaterials.add(Material.DEEPSLATE_COAL_ORE);
         deepOreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
@@ -529,6 +528,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
                 });
             });
         });
+    }
+
+    public Collection<? extends GlobalStatisticKey> getGlobalStatsKeys() {
+        return cubesideStatistics.getAllGlobalStatisticKeys();
     }
 
     public String getCombinedString(LinkedList<String> components, String separator) {
