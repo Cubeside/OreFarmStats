@@ -20,6 +20,8 @@ import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.inventory.ItemStack;
 
 public class PlayerListener implements Listener {
@@ -71,6 +73,13 @@ public class PlayerListener implements Listener {
                 if (ageable.getAge() == ageable.getMaximumAge()) {
                     plugin.addVeggie(e.getPlayer(), e.getBlock().getLocation());
                 }
+            }
+        }
+
+        if (plugin.isIceSnow(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            if (plugin.getKnownWorldIceSnowLocations(loc.getWorld()).add(loc)) {
+                plugin.addIceSnowMined(e.getPlayer());
             }
         }
 /*
@@ -162,6 +171,10 @@ public class PlayerListener implements Listener {
             Location loc = e.getBlock().getLocation();
             plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc);
         }
+        if (plugin.isIceSnow(e.getBlock().getType()) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            plugin.getKnownWorldIceSnowLocations(loc.getWorld()).add(loc);
+        }
         if (!plugin.isNowInEvent()) {
             return;
         }
@@ -187,6 +200,11 @@ public class PlayerListener implements Listener {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
+            }
+            if (plugin.isIceSnow(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldIceSnowLocations(loc.getWorld()).add(loc);
             }
             if (!plugin.isNowInEvent()) {
                 return;
@@ -216,6 +234,11 @@ public class PlayerListener implements Listener {
                 Block newBlock = b.getRelative(e.getDirection());
                 Location loc = newBlock.getLocation();
                 plugin.getKnownWorldLogLocations(loc.getWorld()).add(loc);
+            }
+            if (plugin.isIceSnow(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
+                Block newBlock = b.getRelative(e.getDirection());
+                Location loc = newBlock.getLocation();
+                plugin.getKnownWorldIceSnowLocations(loc.getWorld()).add(loc);
             }
             if (!plugin.isNowInEvent()) {
                 return;
@@ -267,6 +290,26 @@ public class PlayerListener implements Listener {
             return;
         }
         plugin.addOlympicTorchScore(event.getPlayer(), -50);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBucketFill(PlayerBucketFillEvent e) {
+        Block clickedBlock = e.getBlockClicked();
+        if (plugin.isIceSnow(clickedBlock.getType()) && plugin.isWorldLogged(clickedBlock.getWorld())) {
+            Location loc = clickedBlock.getLocation();
+            if (plugin.getKnownWorldIceSnowLocations(loc.getWorld()).add(loc)) {
+                plugin.addIceSnowMined(e.getPlayer());
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent e) {
+        Block bucketBlock = e.getBlock();
+        if (plugin.isIceSnow(bucketBlock.getType()) && plugin.isWorldLogged(bucketBlock.getWorld())) {
+            Location loc = e.getBlock().getLocation();
+            plugin.getKnownWorldIceSnowLocations(loc.getWorld()).add(loc);
+        }
     }
 
     public void onTick() {

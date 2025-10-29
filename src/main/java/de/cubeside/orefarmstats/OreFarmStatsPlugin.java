@@ -59,6 +59,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final Map<UUID, LinkedList<Location>> veggieLocationsPlayer = new HashMap<>();
     private final Map<UUID, LinkedList<Location>> communityEventveggieLocationsPlayer = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldOreLocations> previousIceSnowLocations = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousEventLogLocations = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousGrasscutLocations = new HashMap<>();
@@ -75,6 +76,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashSet<Material> logMaterials = new HashSet<>();
     private final HashSet<Material> buddlerMaterials = new HashSet<>();
     private final HashSet<Material> veggiesMaterials = new HashSet<>();
+    private final HashSet<Material> iceSnowMaterials = new HashSet<>();
     private final HashMap<Material, Integer> medalMaterials = new HashMap<>();
     private final HashSet<Material> grassCutterMaterials = new HashSet<>();
     private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
@@ -92,6 +94,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey breedStatsKey;
     private StatisticKey veggieStatsKey;
     private StatisticKey buddelStatsKey;
+    private StatisticKey iceSnowStatsKey;
     private Set<String> loggedWorlds;
 
     private long eventStartMillis;
@@ -198,6 +201,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         veggiesMaterials.add(Material.NETHER_WART);
         veggiesMaterials.add(Material.COCOA);
 
+        iceSnowMaterials.add(Material.ICE);
+        iceSnowMaterials.add(Material.BLUE_ICE);
+        iceSnowMaterials.add(Material.PACKED_ICE);
+        iceSnowMaterials.add(Material.SNOW);
+        iceSnowMaterials.add(Material.SNOW_BLOCK);
+        iceSnowMaterials.add(Material.POWDER_SNOW);
+
         medalMaterials.put(Material.GOLD_ORE, 5);
         medalMaterials.put(Material.DEEPSLATE_GOLD_ORE, 5);
         medalMaterials.put(Material.NETHER_GOLD_ORE, 5);
@@ -286,6 +296,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         logStatsKey = cubesideStatistics.getStatisticKey("farmstats.log");
         logStatsKey.setDisplayName("Holz gefarmt");
         logStatsKey.setIsMonthlyStats(true);
+
+        iceSnowStatsKey = cubesideStatistics.getStatisticKey("farmstats.icesnow");
+        iceSnowStatsKey.setDisplayName("Eis und Schnee gemint");
+        iceSnowStatsKey.setIsMonthlyStats(true);
 
         breedStatsKey = cubesideStatistics.getStatisticKey("farmstats.breeding");
         breedStatsKey.setDisplayName("Tiere vermehrt");
@@ -415,6 +429,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             e.close();
         }
         previousBuddelLocations.clear();
+
+        for (KnownWorldOreLocations e : previousIceSnowLocations.values()) {
+            e.close();
+        }
+        previousIceSnowLocations.clear();
 
         for (KnownWorldPlayerChunks e : schweinereiterChunks.values()) {
             e.close();
@@ -549,6 +568,14 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return previousBuddelLocations.computeIfAbsent(world.getName(), world2 -> new KnownWorldMultiLocations(this, world2, 10, "buddel"));
     }
 
+    public KnownWorldOreLocations getKnownWorldIceSnowLocations(World world) {
+        return getKnownWorldIceSnowLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldIceSnowLocations(String world) {
+        return previousIceSnowLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2));
+    }
+
     public KnownWorldPlayerChunks getKnownWorldSchweinereiterLocations(World world) {
         return schweinereiterChunks.computeIfAbsent(world.getName(), world2 -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
     }
@@ -604,6 +631,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isBuddelzeug(Material type) {
         return buddlerMaterials.contains(type);
+    }
+
+    public boolean isIceSnow(Material type) {
+        return iceSnowMaterials.contains(type);
     }
 
     public boolean isMedal(Material type) {
@@ -677,6 +708,12 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(logStatsKey, 1);
+    }
+
+    public void addIceSnowMined(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(iceSnowStatsKey, 1);
     }
 
     public void addAnimalBreed(Player p) {
