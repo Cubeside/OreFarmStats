@@ -22,6 +22,7 @@ import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
 import de.iani.cubesideutils.bukkit.commands.CommandRouter;
 
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -57,6 +59,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashMap<String, KnownWorldOreLocations> previousLogLocations = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousIceSnowLocations = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousEventLogLocations = new HashMap<>();
+    private final HashMap<String, KnownWorldMultiChunks> previousMonsterLocations = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousGrasscutLocations = new HashMap<>();
     private final HashMap<String, KnownWorldMultiChunks> halloweenMonsterkillingChunks = new HashMap<>();
@@ -73,6 +76,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashSet<Material> buddlerMaterials = new HashSet<>();
     private final HashSet<Material> veggiesMaterials = new HashSet<>();
     private final HashSet<Material> iceSnowMaterials = new HashSet<>();
+    private final HashSet<EntityType> monsterMobs = new HashSet<>();
     private final HashMap<Material, Integer> medalMaterials = new HashMap<>();
     private final HashSet<Material> grassCutterMaterials = new HashSet<>();
     private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
@@ -91,6 +95,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private StatisticKey veggieStatsKey;
     private StatisticKey buddelStatsKey;
     private StatisticKey iceSnowStatsKey;
+    private StatisticKey monsterSlayerStatsKey;
     private Set<String> loggedWorlds;
 
     private long eventStartMillis;
@@ -207,6 +212,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         iceSnowMaterials.add(Material.SNOW_BLOCK);
         iceSnowMaterials.add(Material.POWDER_SNOW);
 
+        monsterMobs.addAll(Arrays.stream(EntityType.values())
+                .filter(EntityType::isAlive)
+                .filter(EntityType::isSpawnable)
+                .filter(type -> type.getEntityClass() != null &&
+                        org.bukkit.entity.Enemy.class.isAssignableFrom(type.getEntityClass()))
+                .collect(Collectors.toSet()));
+
         medalMaterials.put(Material.GOLD_ORE, 5);
         medalMaterials.put(Material.DEEPSLATE_GOLD_ORE, 5);
         medalMaterials.put(Material.NETHER_GOLD_ORE, 5);
@@ -299,6 +311,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         iceSnowStatsKey = cubesideStatistics.getStatisticKey("farmstats.icesnow");
         iceSnowStatsKey.setDisplayName("Eis und Schnee gemint");
         iceSnowStatsKey.setIsMonthlyStats(true);
+
+        monsterSlayerStatsKey = cubesideStatistics.getStatisticKey("farmstats.monster");
+        monsterSlayerStatsKey.setDisplayName("Monster gekillt");
+        monsterSlayerStatsKey.setIsMonthlyStats(true);
 
         breedStatsKey = cubesideStatistics.getStatisticKey("farmstats.breeding");
         breedStatsKey.setDisplayName("Tiere vermehrt");
@@ -433,6 +449,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             e.close();
         }
         previousIceSnowLocations.clear();
+
+        for (KnownWorldMultiChunks e : previousMonsterLocations.values()) {
+            e.close();
+        }
+        previousMonsterLocations.clear();
 
         for (KnownWorldPlayerChunks e : schweinereiterChunks.values()) {
             e.close();
@@ -579,6 +600,16 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return previousIceSnowLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2));
     }
 
+    public KnownWorldMultiChunks getKnownWorldMonsterLocations(World world) {
+        return getKnownWorldMonsterLocations(world.getName());
+    }
+
+    public KnownWorldMultiChunks getKnownWorldMonsterLocations(String world) {
+        Calendar c = Calendar.getInstance();
+        int month = c.get(Calendar.MONTH) + 1;
+        return previousMonsterLocations.computeIfAbsent(world, world2 -> new KnownWorldMultiChunks(this, world2, 30, ("monster+MY" + (month < 10 ? String.format("0%d", month) : month) + "-" + (c.get(Calendar.YEAR)))));
+    }
+
     public KnownWorldPlayerChunks getKnownWorldSchweinereiterLocations(World world) {
         return schweinereiterChunks.computeIfAbsent(world.getName(), world2 -> new KnownWorldPlayerChunks(this, world2, "schweinereiter"));
     }
@@ -638,6 +669,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isIceSnow(Material type) {
         return iceSnowMaterials.contains(type);
+    }
+
+    public boolean isMonster(EntityType type) {
+        return monsterMobs.contains(type);
     }
 
     public boolean isMedal(Material type) {
@@ -717,6 +752,12 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(iceSnowStatsKey, 1);
+    }
+
+    public void addMonsterSlayen(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        playerStats.increaseScore(monsterSlayerStatsKey, 1);
     }
 
     public void addAnimalBreed(Player p) {

@@ -140,6 +140,14 @@ public class PlayerListener implements Listener {
             return;
         }
 
+        if (plugin.isMonster(e.getEntityType())) {
+            Location loc = e.getEntity().getLocation();
+            if (plugin.getKnownWorldMonsterLocations(loc.getWorld()).add(player.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                plugin.addMonsterSlayen(player);
+            }
+        }
+
+        /*
         ItemStack itemInHand = player.getInventory().getItemInMainHand();
         EntityType monster = e.getEntityType();
 
@@ -149,6 +157,7 @@ public class PlayerListener implements Listener {
                 plugin.addHalloweenKillingScore(player, monster);
             }
         }
+        */
 
         /*
         if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
