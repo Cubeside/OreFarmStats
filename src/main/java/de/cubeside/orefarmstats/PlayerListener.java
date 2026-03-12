@@ -6,7 +6,6 @@ import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Strider;
 import org.bukkit.event.EventHandler;
@@ -44,10 +43,10 @@ public class PlayerListener implements Listener {
                     plugin.addDeepOreMined(e.getPlayer());
                 }
                 /*
-                if (plugin.isNowInEvent() && plugin.isMedal(material)) {
-                    plugin.addMedalMined(e.getPlayer(), plugin.getMedalScore(material));
-                }
-                */
+                 * if (plugin.isNowInEvent() && plugin.isMedal(material)) {
+                 * plugin.addMedalMined(e.getPlayer(), plugin.getMedalScore(material));
+                 * }
+                 */
             }
         }
 
@@ -82,24 +81,24 @@ public class PlayerListener implements Listener {
                 plugin.addIceSnowMined(e.getPlayer());
             }
         }
-/*
-        if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
-            Location loc = e.getBlock().getLocation();
-            if (plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc)) {
-                plugin.addGrassCut(e.getPlayer());
-            }
-        }
-
-        if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
-            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
-                if (ageable.getAge() == ageable.getMaximumAge()) {
-                    plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
-                }
-            } else {
-                plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
-            }
-        }
- */
+        /*
+         * if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+         * Location loc = e.getBlock().getLocation();
+         * if (plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc)) {
+         * plugin.addGrassCut(e.getPlayer());
+         * }
+         * }
+         * 
+         * if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
+         * if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+         * if (ageable.getAge() == ageable.getMaximumAge()) {
+         * plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
+         * }
+         * } else {
+         * plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
+         * }
+         * }
+         */
         if (!plugin.isNowInEvent()) {
             return;
         }
@@ -113,7 +112,6 @@ public class PlayerListener implements Listener {
 
         if (material == Material.NETHER_WART) {
             if (e.getBlock().getBlockData() instanceof Ageable ageable) {
-                Location loc = e.getBlock().getLocation();
                 if (ageable.getAge() == ageable.getMaximumAge()) {
                     plugin.addHalloweenNetherwarzenScore(e.getPlayer(), e.getBlock().getLocation());
                 }
@@ -148,22 +146,22 @@ public class PlayerListener implements Listener {
         }
 
         /*
-        ItemStack itemInHand = player.getInventory().getItemInMainHand();
-        EntityType monster = e.getEntityType();
-
-        if (plugin.isNowInEvent() && plugin.isHalloweenMonster(monster) && itemInHand.getType() == Material.SUGAR) {
-            Location loc = e.getEntity().getLocation();
-            if (plugin.getKnownWorldHalloweenMonsterkillingLocations(loc.getWorld()).add(player.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
-                plugin.addHalloweenKillingScore(player, monster);
-            }
-        }
-        */
+         * ItemStack itemInHand = player.getInventory().getItemInMainHand();
+         * EntityType monster = e.getEntityType();
+         * 
+         * if (plugin.isNowInEvent() && plugin.isHalloweenMonster(monster) && itemInHand.getType() == Material.SUGAR) {
+         * Location loc = e.getEntity().getLocation();
+         * if (plugin.getKnownWorldHalloweenMonsterkillingLocations(loc.getWorld()).add(player.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+         * plugin.addHalloweenKillingScore(player, monster);
+         * }
+         * }
+         */
 
         /*
-        if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
-            plugin.addFlySwat(player);
-        }
-        */
+         * if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
+         * plugin.addFlySwat(player);
+         * }
+         */
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -332,29 +330,29 @@ public class PlayerListener implements Listener {
             }
         }
     }
-/*
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onVehicleMove(VehicleMoveEvent e) {
-        if (plugin.isNowInEvent()) {
-            Entity vehicle = e.getVehicle();
-            if (vehicle instanceof Boat) {
-                Location pold = e.getFrom();
-                Location pnew = e.getTo();
-                if (pold.getWorld() == pnew.getWorld() && pold.getWorld() != null) {
-                    double dist = pold.distance(pnew);
-                    if (!Double.isNaN(dist) && !Double.isInfinite(dist) && dist > 0 && dist < 10) {
-                        for (Entity passenger : vehicle.getPassengers()) {
-                            if (passenger instanceof Player player) {
-                                if (player.getGameMode() != GameMode.CREATIVE
-                                        && player.getGameMode() != GameMode.SPECTATOR) {
-                                    plugin.addBoatTravel(player, dist);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-*/
+    /*
+     * @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+     * public void onVehicleMove(VehicleMoveEvent e) {
+     * if (plugin.isNowInEvent()) {
+     * Entity vehicle = e.getVehicle();
+     * if (vehicle instanceof Boat) {
+     * Location pold = e.getFrom();
+     * Location pnew = e.getTo();
+     * if (pold.getWorld() == pnew.getWorld() && pold.getWorld() != null) {
+     * double dist = pold.distance(pnew);
+     * if (!Double.isNaN(dist) && !Double.isInfinite(dist) && dist > 0 && dist < 10) {
+     * for (Entity passenger : vehicle.getPassengers()) {
+     * if (passenger instanceof Player player) {
+     * if (player.getGameMode() != GameMode.CREATIVE
+     * && player.getGameMode() != GameMode.SPECTATOR) {
+     * plugin.addBoatTravel(player, dist);
+     * }
+     * }
+     * }
+     * }
+     * }
+     * }
+     * }
+     * }
+     */
 }
