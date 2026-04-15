@@ -60,10 +60,10 @@ public class PlayerListener implements Listener {
                     plugin.addDeepOreMined(e.getPlayer());
                 }
                 /*
-                if (plugin.isNowInEvent() && plugin.isMedal(material)) {
-                    plugin.addMedalMined(e.getPlayer(), plugin.getMedalScore(material));
-                }
-                */
+                 * if (plugin.isNowInEvent() && plugin.isMedal(material)) {
+                 * plugin.addMedalMined(e.getPlayer(), plugin.getMedalScore(material));
+                 * }
+                 */
             }
         }
 
@@ -137,7 +137,6 @@ public class PlayerListener implements Listener {
 
         if (material == Material.NETHER_WART) {
             if (e.getBlock().getBlockData() instanceof Ageable ageable) {
-                Location loc = e.getBlock().getLocation();
                 if (ageable.getAge() == ageable.getMaximumAge()) {
                     plugin.addHalloweenNetherwarzenScore(e.getPlayer(), e.getBlock().getLocation());
                 }
@@ -181,10 +180,10 @@ public class PlayerListener implements Listener {
 
 
         /*
-        if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
-            plugin.addFlySwat(player);
-        }
-        */
+         * if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
+         * plugin.addFlySwat(player);
+         * }
+         */
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -414,29 +413,29 @@ public class PlayerListener implements Listener {
             }
         }
     }
-/*
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onVehicleMove(VehicleMoveEvent e) {
-        if (plugin.isNowInEvent()) {
-            Entity vehicle = e.getVehicle();
-            if (vehicle instanceof Boat) {
-                Location pold = e.getFrom();
-                Location pnew = e.getTo();
-                if (pold.getWorld() == pnew.getWorld() && pold.getWorld() != null) {
-                    double dist = pold.distance(pnew);
-                    if (!Double.isNaN(dist) && !Double.isInfinite(dist) && dist > 0 && dist < 10) {
-                        for (Entity passenger : vehicle.getPassengers()) {
-                            if (passenger instanceof Player player) {
-                                if (player.getGameMode() != GameMode.CREATIVE
-                                        && player.getGameMode() != GameMode.SPECTATOR) {
-                                    plugin.addBoatTravel(player, dist);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-*/
+    /*
+     * @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+     * public void onVehicleMove(VehicleMoveEvent e) {
+     * if (plugin.isNowInEvent()) {
+     * Entity vehicle = e.getVehicle();
+     * if (vehicle instanceof Boat) {
+     * Location pold = e.getFrom();
+     * Location pnew = e.getTo();
+     * if (pold.getWorld() == pnew.getWorld() && pold.getWorld() != null) {
+     * double dist = pold.distance(pnew);
+     * if (!Double.isNaN(dist) && !Double.isInfinite(dist) && dist > 0 && dist < 10) {
+     * for (Entity passenger : vehicle.getPassengers()) {
+     * if (passenger instanceof Player player) {
+     * if (player.getGameMode() != GameMode.CREATIVE
+     * && player.getGameMode() != GameMode.SPECTATOR) {
+     * plugin.addBoatTravel(player, dist);
+     * }
+     * }
+     * }
+     * }
+     * }
+     * }
+     * }
+     * }
+     */
 }
