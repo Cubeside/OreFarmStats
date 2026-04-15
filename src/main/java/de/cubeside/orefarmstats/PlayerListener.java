@@ -1,12 +1,25 @@
 package de.cubeside.orefarmstats;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.block.data.type.Cake;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Chicken;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Strider;
 import org.bukkit.event.EventHandler;
@@ -17,12 +30,15 @@ import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityBreedEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.BoundingBox;
 
 public class PlayerListener implements Listener {
     private final OreFarmStatsPlugin plugin;
@@ -82,6 +98,14 @@ public class PlayerListener implements Listener {
                 plugin.addIceSnowMined(e.getPlayer());
             }
         }
+
+        if (plugin.isNowInEvent() && material == Material.WHEAT) {
+            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+                if (ageable.getAge() == ageable.getMaximumAge()) {
+                    plugin.addBirthdayWheatScore(e.getPlayer(), e.getBlock().getLocation());
+                }
+            }
+        }
 /*
         if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
             Location loc = e.getBlock().getLocation();
@@ -99,7 +123,7 @@ public class PlayerListener implements Listener {
                 plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
             }
         }
- */
+
         if (!plugin.isNowInEvent()) {
             return;
         }
@@ -130,6 +154,7 @@ public class PlayerListener implements Listener {
                 }
             }
         }
+        */
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -147,17 +172,13 @@ public class PlayerListener implements Listener {
             }
         }
 
-        /*
-        ItemStack itemInHand = player.getInventory().getItemInMainHand();
-        EntityType monster = e.getEntityType();
-
-        if (plugin.isNowInEvent() && plugin.isHalloweenMonster(monster) && itemInHand.getType() == Material.SUGAR) {
+        if (plugin.isNowInEvent() && plugin.isIllager(e.getEntityType()) && e.getDamageSource().getDirectEntity() instanceof Firework) {
             Location loc = e.getEntity().getLocation();
-            if (plugin.getKnownWorldHalloweenMonsterkillingLocations(loc.getWorld()).add(player.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
-                plugin.addHalloweenKillingScore(player, monster);
+            if (plugin.getKnownWorldEventMonsterkillingLocations(loc.getWorld()).add(player.getUniqueId(), loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                plugin.addBirthdayIllagerScore(player);
             }
         }
-        */
+
 
         /*
         if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
@@ -198,6 +219,56 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCakeEat(EntityChangeBlockEvent e) {
+        if (!plugin.isNowInEvent())
+            return;
+        if (e.getEntity() instanceof Player p) {
+            if (e.getBlock().getType() != Material.CAKE) {
+                return;
+            }
+            ProtectedRegion region = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(p.getWorld())).getRegion("kuchenschmaus");
+            Location loc = e.getBlock().getLocation();
+            if (region == null || !region.contains(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
+                return;
+            }
+            if (e.getTo() == Material.AIR || (e.getTo() == Material.CAKE && ((Cake) e.getBlockData()).getBites() > ((Cake) e.getBlock().getBlockData()).getBites())) {
+                plugin.addBirthdayCakeScore(p);
+                if (e.getTo() == Material.AIR) {
+                    plugin.getKnownWorldEatenCakeLocations(loc.getWorld()).add(loc);
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onFeedingLuma(PlayerInteractEntityEvent e) {
+        if (!plugin.isNowInEvent()) {
+            return;
+        }
+        Entity receiver = plugin.getReceivingEntity();
+        if (receiver == null) {
+            return;
+        }
+        if (!e.getRightClicked().equals(receiver)) {
+            return;
+        }
+        e.setCancelled(true);
+
+        ItemStack[] stacks = e.getPlayer().getInventory().getContents();
+        for (ItemStack item : stacks) {
+            if (item != null && item.getType() == Material.CAKE && Boolean.TRUE.equals(item.getData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE))) {
+                item.subtract();
+                plugin.addBirthdayLumaScore(e.getPlayer());
+                receiver.getWorld().playSound(receiver.getLocation(), Sound.ENTITY_GENERIC_EAT, 1, 0.75f);
+                BoundingBox box = receiver.getBoundingBox();
+                receiver.getWorld().spawnParticle(Particle.HEART, receiver.getLocation().add(0, box.getHeight() / 2, 0), 5, box.getWidthX() / 4 + 0.1, box.getHeight() / 4 + 0.1, box.getWidthZ() / 4 + 0.1);
+                return;
+            }
+        }
+        Audience.audience(e.getPlayer()).sendMessage(Component.text("Du hast keinen gültigen Kuchen in deinem Inventar.", NamedTextColor.GOLD));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent e) {
         for (Block b : e.getBlocks()) {
             if (plugin.isOre(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
@@ -232,7 +303,7 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPistonRetract(BlockPistonRetractEvent e) {
+    public void onEntityBreed(BlockPistonRetractEvent e) {
         for (Block b : e.getBlocks()) {
             if (plugin.isOre(b.getType()) && plugin.isWorldLogged(b.getWorld())) {
                 Block newBlock = b.getRelative(e.getDirection());
@@ -266,11 +337,19 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPistonRetract(EntityBreedEvent e) {
+    public void onEntityBreed(EntityBreedEvent e) {
         if (e.getBreeder() instanceof Player player) {
             plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> {
-                if (e.getEntity().isValid()) {
+                Entity baby = e.getEntity();
+                if (baby.isValid()) {
                     plugin.addAnimalBreed(player);
+                    if (!plugin.isNowInEvent())
+                        return;
+                    if (baby.getType() == EntityType.COW) {
+                        plugin.addBirthdayCowScore(player);
+                    } else if (baby.getType() == EntityType.CHICKEN) {
+                        plugin.addBirthdayChickenScore(player, ((Chicken) baby).getVariant());
+                    }
                 }
             }, 1L);
         }
@@ -278,6 +357,9 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageEvent event) {
+        if (event.getEntity().equals(plugin.getReceivingEntity())) {
+            event.setCancelled(true);
+        }
         if (!(event.getEntity() instanceof Player player)) {
             return;
         }

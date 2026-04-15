@@ -1,5 +1,9 @@
 package de.cubeside.orefarmstats;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.WorldGuard;
+import de.cubeside.orefarmstats.commands.RemoveReceivingEntityCommand;
+import de.cubeside.orefarmstats.commands.SetReceivingEntityCommand;
 import de.cubeside.orefarmstats.commands.lottery.ClearLotteryStatsKeysCommand;
 import de.cubeside.orefarmstats.commands.lottery.ListLotteryStatsKeysCommand;
 import de.cubeside.orefarmstats.commands.lottery.SetLotteryStatsKeysCommand;
@@ -41,15 +45,21 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.damage.DamageType;
+import org.bukkit.entity.Chicken;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.BlockVector;
 import org.jetbrains.annotations.Nullable;
 
 public class OreFarmStatsPlugin extends JavaPlugin {
 
     private StatsDisplayManager statsDisplays;
+
+    private Entity receivingEntity;
 
     private final HashMap<String, KnownWorldOreLocations> previousLocations = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousEventLocations = new HashMap<>();
@@ -62,13 +72,15 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashMap<String, KnownWorldMultiChunks> previousMonsterLocations = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schweinereiterChunks = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousGrasscutLocations = new HashMap<>();
-    private final HashMap<String, KnownWorldMultiChunks> halloweenMonsterkillingChunks = new HashMap<>();
+    private final HashMap<String, KnownWorldMultiChunks> communityEventMonsterkillingChunks = new HashMap<>();
     private final HashMap<String, KnownWorldPlayerChunks> schreiterReiterChunks = new HashMap<>();
+    private final HashMap<String, KnownWorldOreLocations> eatenCakes = new HashMap<>();
 
     private final HashMap<UUID, Double> playerBoatTravelAccumDist = new HashMap<>();
     private final Set<DamageCause> fireDamageCauses = EnumSet.of(DamageCause.CAMPFIRE, DamageCause.FIRE, DamageCause.FIRE_TICK, DamageCause.HOT_FLOOR, DamageCause.LAVA);
     private final Set<DamageType> fireDamageTypes = Set.of(DamageType.CAMPFIRE, DamageType.HOT_FLOOR, DamageType.IN_FIRE, DamageType.LAVA, DamageType.ON_FIRE);
     private final Map<UUID, Double> olympicTorchPartialPoints = new HashMap<>();
+    private final Map<UUID, Integer> cakePiecesEaten = new HashMap<>();
 
     private final HashSet<Material> oreMaterials = new HashSet<>();
     private final HashSet<Material> deepOreMaterials = new HashSet<>();
@@ -77,11 +89,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private final HashSet<Material> veggiesMaterials = new HashSet<>();
     private final HashSet<Material> iceSnowMaterials = new HashSet<>();
     private final HashSet<EntityType> monsterMobs = new HashSet<>();
+    private final HashSet<EntityType> illagerMobs = new HashSet<>();
     private final HashMap<Material, Integer> medalMaterials = new HashMap<>();
     private final HashSet<Material> grassCutterMaterials = new HashSet<>();
     private final HashSet<EntityType> flySwatterMobs = new HashSet<>();
     private HashMap<Material, List<Object>> veggieStatsKeysMap;
     private HashMap<EntityType, List<Object>> halloweenMonsterKillingStatsKeysMap;
+    private HashMap<Chicken.Variant, List<Object>> birthdayMobBreedingStatsKeysMap;
 
     private final HashSet<Material> halloweenMiningMaterials = new HashSet<>();
     private final HashSet<Material> halloweenNetherbaumMaterials = new HashSet<>();
@@ -137,6 +151,25 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private GlobalStatisticKey halloween2025CommunityNetherbaumStatsKey;
     private GlobalStatisticKey halloween2025CommunityNetherwarzenStatsKey;
 
+    private StatisticKey birthday2026PlayerCowStatsKey;
+    private StatisticKey birthday2026PlayerTemperateChickenStatsKey;
+    private StatisticKey birthday2026PlayerColdChickenStatsKey;
+    private StatisticKey birthday2026PlayerWarmChickenStatsKey;
+    private StatisticKey birthday2026PlayerCakeEatenStatsKey;
+    private StatisticKey birthday2026PlayerLumaFedStatsKey;
+    private StatisticKey birthday2026PlayerWheatStatsKey;
+    // private StatisticKey birthday2026PlayerSugarCaneStatsKey;
+    private StatisticKey birthday2026PlayerIllagerKilledStatsKey;
+    private GlobalStatisticKey birthday2026CommunityCowStatsKey;
+    private GlobalStatisticKey birthday2026CommunityTemperateChickenStatsKey;
+    private GlobalStatisticKey birthday2026CommunityColdChickenStatsKey;
+    private GlobalStatisticKey birthday2026CommunityWarmChickenStatsKey;
+    private GlobalStatisticKey birthday2026CommunityCakeEatenStatsKey;
+    private GlobalStatisticKey birthday2026CommunityLumaFedStatsKey;
+    private GlobalStatisticKey birthday2026CommunityWheatStatsKey;
+    // private GlobalStatisticKey birthday2026CommunitySugarCaneStatsKey;
+    private GlobalStatisticKey birthday2026CommunityIllagerKilledStatsKey;
+
     @Override
     public void onEnable() {
         cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
@@ -154,6 +187,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         router.addCommandMapping(new SetLotteryStatsKeysCommand(this), "lottery", "setKeys");
         router.addCommandMapping(new ClearLotteryStatsKeysCommand(this), "lottery", "clearKeys");
         router.addCommandMapping(new ListLotteryStatsKeysCommand(this), "lottery", "listKeys");
+        router.addCommandMapping(new SetReceivingEntityCommand(this), "setReceiveEntity");
+        router.addCommandMapping(new RemoveReceivingEntityCommand(this), "removeReceiveEntity");
 
         deepOreMaterials.add(Material.DEEPSLATE_COAL_ORE);
         deepOreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
@@ -217,6 +252,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
                 .filter(EntityType::isSpawnable)
                 .filter(type -> type.getEntityClass() != null &&
                         org.bukkit.entity.Enemy.class.isAssignableFrom(type.getEntityClass()))
+                .collect(Collectors.toSet()));
+
+        illagerMobs.addAll(Arrays.stream(EntityType.values())
+                .filter(EntityType::isAlive)
+                .filter(EntityType::isSpawnable)
+                .filter(type -> type.getEntityClass() != null &&
+                        org.bukkit.entity.Illager.class.isAssignableFrom(type.getEntityClass()))
                 .collect(Collectors.toSet()));
 
         medalMaterials.put(Material.GOLD_ORE, 5);
@@ -287,9 +329,9 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
         Calendar c = Calendar.getInstance();
         c.set(Calendar.MILLISECOND, 0);
-        c.set(2025, Calendar.OCTOBER, 23, 0, 0, 0);
+        c.set(2026, Calendar.APRIL, 17, 0, 0, 0);
         eventStartMillis = c.getTimeInMillis();
-        c.set(2025, Calendar.NOVEMBER, 2, 19, 0, 0);
+        c.set(2026, Calendar.APRIL, 26, 19, 0, 0);
         eventEndMillis = c.getTimeInMillis();
 
         oreStatsKey = cubesideStatistics.getStatisticKey("farmstats.ore");
@@ -408,24 +450,117 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         halloween2025CommunityNetherwarzenStatsKey = cubesideStatistics.getGlobalStatisticKey("halloween.2025.netherwarzen");
         halloween2025CommunityNetherwarzenStatsKey.setDisplayName("Netherwarzen gemeinsam gefarmt");
 
+        birthday2026PlayerCowStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.cow");
+        birthday2026PlayerCowStatsKey.setDisplayName("Kühe getötet");
+        birthday2026PlayerTemperateChickenStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.chicken.temperate");
+        birthday2026PlayerTemperateChickenStatsKey.setDisplayName("Gemäßigte Hühner getötet");
+        birthday2026PlayerColdChickenStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.chicken.cold");
+        birthday2026PlayerColdChickenStatsKey.setDisplayName("Kalt-Hühner getötet");
+        birthday2026PlayerWarmChickenStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.chicken.warm");
+        birthday2026PlayerWarmChickenStatsKey.setDisplayName("Warm-Hühner getötet");
+        birthday2026PlayerCakeEatenStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.cake");
+        birthday2026PlayerCakeEatenStatsKey.setDisplayName("Kuchen gefuttert");
+        birthday2026PlayerLumaFedStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.luma");
+        birthday2026PlayerLumaFedStatsKey.setDisplayName("Kuchen an Willi Warden verfüttert");
+        birthday2026PlayerWheatStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.wheat");
+        birthday2026PlayerWheatStatsKey.setDisplayName("Weizen gefarmt");
+        // birthday2026PlayerSugarCaneStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.sugarcane");
+        // birthday2026PlayerSugarCaneStatsKey.setDisplayName("Zuckerrohr gefarmt");
+        birthday2026PlayerIllagerKilledStatsKey = cubesideStatistics.getStatisticKey("birthday.2026.illager");
+        birthday2026PlayerIllagerKilledStatsKey.setDisplayName("Illager besiegt");
+        birthday2026CommunityCowStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.cow");
+        birthday2026CommunityCowStatsKey.setDisplayName("Kühe gemeinsam getötet");
+        birthday2026CommunityTemperateChickenStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.chicken.temperate");
+        birthday2026CommunityTemperateChickenStatsKey.setDisplayName("Gemäßigte Hühner gemeinsam getötet");
+        birthday2026CommunityColdChickenStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.chicken.cold");
+        birthday2026CommunityColdChickenStatsKey.setDisplayName("Kalt-Hühner gemeinsam getötet");
+        birthday2026CommunityWarmChickenStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.chicken.warm");
+        birthday2026CommunityWarmChickenStatsKey.setDisplayName("Warm-Hühner gemeinsam getötet");
+        birthday2026CommunityCakeEatenStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.cake");
+        birthday2026CommunityCakeEatenStatsKey.setDisplayName("Kuchen gemeinsam gefuttert");
+        birthday2026CommunityLumaFedStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.luma");
+        birthday2026CommunityLumaFedStatsKey.setDisplayName("Kuchen an Luma gemeinsam verfüttert");
+        birthday2026CommunityWheatStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.wheat");
+        birthday2026CommunityWheatStatsKey.setDisplayName("Weizen gemeinsam gefarmt");
+        // birthday2026CommunitySugarCaneStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.sugarcane");
+        // birthday2026CommunitySugarCaneStatsKey.setDisplayName("Zuckerrohr gemeinsam gefarmt");
+        birthday2026CommunityIllagerKilledStatsKey = cubesideStatistics.getGlobalStatisticKey("birthday.2026.illager");
+        birthday2026CommunityIllagerKilledStatsKey.setDisplayName("Illager gemeinsam besiegt");
+
         veggieStatsKeysMap = new HashMap<>();
-        veggieStatsKeysMap.put(Material.MELON, List.of(communityEventPlayerMelonStatsKey, communityEventMelonStatsKey));
-        veggieStatsKeysMap.put(Material.POTATOES, List.of(communityEventPlayerPotatoStatsKey, communityEventPotatoStatsKey));
-        veggieStatsKeysMap.put(Material.PUMPKIN, List.of(communityEventPlayerPumpkinStatsKey, communityEventPumpkinStatsKey));
-        veggieStatsKeysMap.put(Material.COCOA, List.of(communityEventPlayerCocoaStatsKey, communityEventCocoaStatsKey));
-        veggieStatsKeysMap.put(Material.CARROTS, List.of(communityEventPlayerCarrotStatsKey, communityEventCarrotStatsKey));
-        veggieStatsKeysMap.put(Material.BEETROOTS, List.of(communityEventPlayerBeetrootStatsKey, communityEventBeetrootStatsKey));
-        veggieStatsKeysMap.put(Material.WHEAT, List.of(communityEventPlayerWheatStatsKey, communityEventWheatStatsKey));
+        //veggieStatsKeysMap.put(Material.SUGAR_CANE, List.of(birthday2026PlayerSugarCaneStatsKey, birthday2026CommunitySugarCaneStatsKey));
+        //veggieStatsKeysMap.put(Material.WHEAT, List.of(birthday2026PlayerWheatStatsKey, birthday2026CommunityWheatStatsKey));
 
         halloweenMonsterKillingStatsKeysMap = new HashMap<>();
         halloweenMonsterKillingStatsKeysMap.put(EntityType.CREEPER, List.of(halloween2025PlayerCreeperKillingStatsKey, halloween2025CommunityCreeperKillingStatsKey));
         halloweenMonsterKillingStatsKeysMap.put(EntityType.PHANTOM, List.of(halloween2025PlayerPhantomKillingStatsKey, halloween2025CommunityPhantomKillingStatsKey));
+
+        birthdayMobBreedingStatsKeysMap = new HashMap<>();
+        birthdayMobBreedingStatsKeysMap.put(Chicken.Variant.TEMPERATE, List.of(birthday2026PlayerTemperateChickenStatsKey, birthday2026CommunityTemperateChickenStatsKey));
+        birthdayMobBreedingStatsKeysMap.put(Chicken.Variant.COLD, List.of(birthday2026PlayerColdChickenStatsKey, birthday2026CommunityColdChickenStatsKey));
+        birthdayMobBreedingStatsKeysMap.put(Chicken.Variant.WARM, List.of(birthday2026PlayerWarmChickenStatsKey, birthday2026CommunityWarmChickenStatsKey));
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 
         if (updateEventStatsSum) {
             getServer().getScheduler().runTaskTimer(this, this::updateStatsSum, 60 * 20, 60 * 20);
         }
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                receivingEntity = getConfig().contains("receivingEntity") ? getServer().getEntity(UUID.fromString(getConfig().getString("receivingEntity"))) : null;
+                if (!getConfig().contains("receivingEntity") || receivingEntity != null) {
+                    this.cancel();
+                }
+            }
+        }.runTaskTimer(this, 5, 5);
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!isNowInEvent())
+                    return;
+                for (World world : getServer().getWorlds()) {
+                    com.sk89q.worldguard.protection.managers.RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+                    if (rm == null || !rm.hasRegion("kuchenschmaus"))
+                        continue;
+                    Set<BlockVector> locations = getKnownWorldEatenCakeLocations(world).getLocations();
+                    for (BlockVector location : locations) {
+                        Location loc = new Location(world, location.getBlockX(), location.getBlockY(), location.getBlockZ());
+                        if (getKnownWorldEatenCakeLocations(world).remove(loc) &&
+                                rm.getRegion("kuchenschmaus").contains(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()) &&
+                                loc.getBlock().getType() == Material.AIR) {
+                            loc.getBlock().setType(Material.CAKE);
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(this, 6000L, 6000L);
+
+/*      // alte Monats .dat Dateien löschen
+        SimpleDateFormat formatter = new SimpleDateFormat("MM-yyyy");
+        for (File file : getDataFolder().listFiles()) {
+            if (file.isFile() && file.getName().indexOf("+MY") > -1) {
+                String fileName = file.getName();
+                fileName = fileName.substring(fileName.indexOf("+MY")+3);
+                fileName = fileName.substring(0, fileName.indexOf('.'));
+                try {
+                    Date date = formatter.parse(fileName);
+                    c.setTime(date);
+                    long fileDate = c.getTimeInMillis();
+                    c = Calendar.getInstance();
+                    long currentDate = c.getTimeInMillis();
+                    getLogger().log(Level.WARNING, "file: " + fileDate + ", current: " + currentDate);
+                    if (currentDate - fileDate > 7889400000L) { // 3 Monate alte löschen
+                        file.delete();
+                    }
+                } catch (ParseException ex) {
+
+                }
+            }
+        }
+*/
     }
 
     @Override
@@ -470,10 +605,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         }
         previousGrasscutLocations.clear();
 
-        for (KnownWorldMultiChunks e : halloweenMonsterkillingChunks.values()) {
+        for (KnownWorldMultiChunks e : communityEventMonsterkillingChunks.values()) {
             e.close();
         }
-        halloweenMonsterkillingChunks.clear();
+        communityEventMonsterkillingChunks.clear();
 
         for (KnownWorldOreLocations e : previousEventLocations.values()) {
             e.close();
@@ -484,10 +619,25 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             e.close();
         }
         previousEventLogLocations.clear();
+
+        for (KnownWorldOreLocations e : eatenCakes.values()) {
+            e.close();
+        }
+        eatenCakes.clear();
     }
 
     public StatsDisplayManager getStatsDisplayManager() {
         return statsDisplays;
+    }
+
+    public Entity getReceivingEntity() {
+        return this.receivingEntity;
+    }
+
+    public void setReceivingEntity(Entity entity) {
+        this.receivingEntity = entity;
+        getConfig().set("receivingEntity", entity != null ? entity.getUniqueId().toString() : null);
+        saveConfig();
     }
 
     public StatisticKey getEventSchweinereitenStatsKey() {
@@ -618,8 +768,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return schreiterReiterChunks.computeIfAbsent(world.getName(), world2 -> new KnownWorldPlayerChunks(this, world2, "schreiterreiter"));
     }
 
-    public KnownWorldMultiChunks getKnownWorldHalloweenMonsterkillingLocations(World world) {
-        return halloweenMonsterkillingChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiChunks(this, world2, 30, "halloween_2025_monsterkilling"));
+    public KnownWorldMultiChunks getKnownWorldEventMonsterkillingLocations(World world) {
+        return communityEventMonsterkillingChunks.computeIfAbsent(world.getName(), (world2) -> new KnownWorldMultiChunks(this, world2, 30, "birthday_2026_monsterkilling"));
     }
 
     public KnownWorldOreLocations getKnownWorldGrasscutLocations(World world) {
@@ -644,6 +794,14 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public KnownWorldOreLocations getKnownWorldEventLogLocations(String world) {
         return previousEventLogLocations.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "halloween_2025_log"));
+    }
+
+    public KnownWorldOreLocations getKnownWorldEatenCakeLocations(World world) {
+        return getKnownWorldEatenCakeLocations(world.getName());
+    }
+
+    public KnownWorldOreLocations getKnownWorldEatenCakeLocations(String world) {
+        return eatenCakes.computeIfAbsent(world, world2 -> new KnownWorldOreLocations(this, world2, "birthday_2026_cake"));
     }
 
     public boolean isNowInEvent() {
@@ -673,6 +831,10 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     public boolean isMonster(EntityType type) {
         return monsterMobs.contains(type);
+    }
+
+    public boolean isIllager(EntityType type) {
+        return illagerMobs.contains(type);
     }
 
     public boolean isMedal(Material type) {
@@ -834,32 +996,6 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         }
     }
 
-    public void addHerbstfestScore(Player p, Material type, Location location) {
-        List<Object> statKeys = veggieStatsKeysMap.get(type);
-        if (statKeys == null) {
-            return;
-        }
-
-        UUID uuid = p.getUniqueId();
-        communityEventveggieLocationsPlayer.putIfAbsent(uuid, new LinkedList<>());
-        LinkedList<Location> locations = communityEventveggieLocationsPlayer.get(uuid);
-        if (locations.contains(location)) {
-            return;
-        }
-        locations.addFirst(location);
-
-        PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
-        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
-
-        playerStats.increaseScore((StatisticKey) statKeys.getFirst(), 1);
-        globalStatistic.increaseValue((GlobalStatisticKey) statKeys.getLast(), 1);
-
-        if (locations.size() > 50) {
-            locations.removeLast();
-        }
-        communityEventveggieLocationsPlayer.put(uuid, locations);
-    }
-
     public void addHalloweenMiningScore(Player p) {
         UUID uuid = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
@@ -917,5 +1053,83 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             locations.removeLast();
         }
         communityEventveggieLocationsPlayer.put(playerId, locations);
+    }
+
+    public void addBirthdayChickenScore(Player p, Chicken.Variant variant) {
+        List<Object> statKeys = birthdayMobBreedingStatsKeysMap.get(variant);
+        if (statKeys == null) {
+            return;
+        }
+
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore((StatisticKey) statKeys.getFirst(), 1);
+        globalStatistic.increaseValue((GlobalStatisticKey) statKeys.getLast(), 1);
+    }
+
+    public void addBirthdayCowScore(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(birthday2026PlayerCowStatsKey, 1);
+        globalStatistic.increaseValue(birthday2026CommunityCowStatsKey, 1);
+    }
+
+    public void addBirthdayCakeScore(Player p) {
+        UUID playerId = p.getUniqueId();
+
+        int amount = cakePiecesEaten.getOrDefault(playerId, 0) + 1;
+        if (amount > 6) {
+            cakePiecesEaten.put(playerId, 0);
+
+            PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+            GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+            playerStats.increaseScore(birthday2026PlayerCakeEatenStatsKey, 1);
+            globalStatistic.increaseValue(birthday2026CommunityCakeEatenStatsKey, 1);
+        } else {
+            cakePiecesEaten.put(playerId, amount);
+        }
+    }
+
+    public void addBirthdayLumaScore(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(birthday2026PlayerLumaFedStatsKey, 1);
+        globalStatistic.increaseValue(birthday2026CommunityLumaFedStatsKey, 1);
+    }
+
+    public void addBirthdayWheatScore(Player p, Location location) {
+        UUID uuid = p.getUniqueId();
+        communityEventveggieLocationsPlayer.putIfAbsent(uuid, new LinkedList<>());
+        LinkedList<Location> locations = communityEventveggieLocationsPlayer.get(uuid);
+        if (locations.contains(location)) {
+            return;
+        }
+        locations.addFirst(location);
+
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(uuid);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(birthday2026PlayerWheatStatsKey, 1);
+        globalStatistic.increaseValue(birthday2026CommunityWheatStatsKey, 1);
+
+        if (locations.size() > 50) {
+            locations.removeLast();
+        }
+        communityEventveggieLocationsPlayer.put(uuid, locations);
+    }
+
+    public void addBirthdayIllagerScore(Player p) {
+        UUID playerId = p.getUniqueId();
+        PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
+        GlobalStatistics globalStatistic = cubesideStatistics.getGlobalStatistics();
+
+        playerStats.increaseScore(birthday2026PlayerIllagerKilledStatsKey, 1);
+        globalStatistic.increaseValue(birthday2026CommunityIllagerKilledStatsKey, 1);
     }
 }

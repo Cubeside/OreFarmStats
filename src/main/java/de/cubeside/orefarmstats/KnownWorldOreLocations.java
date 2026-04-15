@@ -12,8 +12,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Level;
 import org.bukkit.Location;
+import org.bukkit.util.BlockVector;
 
 public class KnownWorldOreLocations {
     private final OreFarmStatsPlugin plugin;
@@ -103,5 +107,16 @@ public class KnownWorldOreLocations {
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not close location file", e);
         }
+    }
+
+    public Set<BlockVector> getLocations() {
+        Set<BlockVector> uncompressedLocations = new HashSet<BlockVector>();
+        Iterator<Long> compressedLocations = knownLocations.iterator();
+
+        while (compressedLocations.hasNext()) {
+            uncompressedLocations.add(CompressedLocation.toBlockVector(compressedLocations.next()));
+        }
+
+        return uncompressedLocations;
     }
 }
