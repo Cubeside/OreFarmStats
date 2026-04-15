@@ -242,6 +242,9 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onFeedingLuma(PlayerInteractEntityEvent e) {
         if (!plugin.isNowInEvent()) {
+            if (e.getRightClicked().equals(plugin.getReceivingEntity())) {
+                Audience.audience(e.getPlayer()).sendMessage(Component.text("Aktuell gibt es kein laufendes Event, wo du ein Item abgeben könntest.", NamedTextColor.GOLD));
+            }
             return;
         }
         Entity receiver = plugin.getReceivingEntity();
