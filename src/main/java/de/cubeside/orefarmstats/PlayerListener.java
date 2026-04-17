@@ -4,6 +4,7 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import java.util.UUID;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -106,54 +107,54 @@ public class PlayerListener implements Listener {
                 }
             }
         }
-/*
-        if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
-            Location loc = e.getBlock().getLocation();
-            if (plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc)) {
-                plugin.addGrassCut(e.getPlayer());
-            }
-        }
-
-        if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
-            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
-                if (ageable.getAge() == ageable.getMaximumAge()) {
-                    plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
-                }
-            } else {
-                plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
-            }
-        }
-
-        if (!plugin.isNowInEvent()) {
-            return;
-        }
-
-        if (plugin.isHalloweenMiningMaterial(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
-            Location loc = e.getBlock().getLocation();
-            if (plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc)) {
-                plugin.addHalloweenMiningScore(e.getPlayer());
-            }
-        }
-
-        if (material == Material.NETHER_WART) {
-            if (e.getBlock().getBlockData() instanceof Ageable ageable) {
-                if (ageable.getAge() == ageable.getMaximumAge()) {
-                    plugin.addHalloweenNetherwarzenScore(e.getPlayer(), e.getBlock().getLocation());
-                }
-            }
-
-        }
-
-        if (plugin.isHalloweenNetherbaumMaterial(material)) {
-            Location loc = e.getBlock().getLocation();
-            if (!plugin.getKnownWorldEventLogLocations(loc.getWorld()).remove(loc)) {
-                ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
-                if (tool == null || tool.getEnchantmentLevel(Enchantment.EFFICIENCY) <= 5) {
-                    plugin.addHalloweenNetherbaumScore(e.getPlayer());
-                }
-            }
-        }
-        */
+        /*
+         * if (plugin.isNowInEvent() && plugin.isGrass(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+         * Location loc = e.getBlock().getLocation();
+         * if (plugin.getKnownWorldGrasscutLocations(loc.getWorld()).add(loc)) {
+         * plugin.addGrassCut(e.getPlayer());
+         * }
+         * }
+         * 
+         * if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
+         * if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+         * if (ageable.getAge() == ageable.getMaximumAge()) {
+         * plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
+         * }
+         * } else {
+         * plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
+         * }
+         * }
+         * 
+         * if (!plugin.isNowInEvent()) {
+         * return;
+         * }
+         * 
+         * if (plugin.isHalloweenMiningMaterial(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
+         * Location loc = e.getBlock().getLocation();
+         * if (plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc)) {
+         * plugin.addHalloweenMiningScore(e.getPlayer());
+         * }
+         * }
+         * 
+         * if (material == Material.NETHER_WART) {
+         * if (e.getBlock().getBlockData() instanceof Ageable ageable) {
+         * if (ageable.getAge() == ageable.getMaximumAge()) {
+         * plugin.addHalloweenNetherwarzenScore(e.getPlayer(), e.getBlock().getLocation());
+         * }
+         * }
+         * 
+         * }
+         * 
+         * if (plugin.isHalloweenNetherbaumMaterial(material)) {
+         * Location loc = e.getBlock().getLocation();
+         * if (!plugin.getKnownWorldEventLogLocations(loc.getWorld()).remove(loc)) {
+         * ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
+         * if (tool == null || tool.getEnchantmentLevel(Enchantment.EFFICIENCY) <= 5) {
+         * plugin.addHalloweenNetherbaumScore(e.getPlayer());
+         * }
+         * }
+         * }
+         */
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -177,7 +178,6 @@ public class PlayerListener implements Listener {
                 plugin.addBirthdayIllagerScore(player);
             }
         }
-
 
         /*
          * if (plugin.isNowInEvent() && plugin.isFly(type) && player != null) {
@@ -219,8 +219,9 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCakeEat(EntityChangeBlockEvent e) {
-        if (!plugin.isNowInEvent())
+        if (!plugin.isNowInEvent()) {
             return;
+        }
         if (e.getEntity() instanceof Player p) {
             if (e.getBlock().getType() != Material.CAKE) {
                 return;
@@ -247,14 +248,15 @@ public class PlayerListener implements Listener {
             }
             return;
         }
-        Entity receiver = plugin.getReceivingEntity();
-        if (receiver == null) {
+        UUID receiverId = plugin.getReceivingEntity();
+        if (receiverId == null) {
             return;
         }
-        if (!e.getRightClicked().equals(receiver)) {
+        if (!e.getRightClicked().getUniqueId().equals(receiverId)) {
             return;
         }
         e.setCancelled(true);
+        Entity receiver = e.getRightClicked();
 
         ItemStack[] stacks = e.getPlayer().getInventory().getContents();
         for (ItemStack item : stacks) {
@@ -345,8 +347,9 @@ public class PlayerListener implements Listener {
                 Entity baby = e.getEntity();
                 if (baby.isValid()) {
                     plugin.addAnimalBreed(player);
-                    if (!plugin.isNowInEvent())
+                    if (!plugin.isNowInEvent()) {
                         return;
+                    }
                     if (baby.getType() == EntityType.COW) {
                         plugin.addBirthdayCowScore(player);
                     } else if (baby.getType() == EntityType.CHICKEN) {

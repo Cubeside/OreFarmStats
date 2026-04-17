@@ -5,11 +5,11 @@ import com.sk89q.worldguard.WorldGuard;
 import de.cubeside.orefarmstats.commands.RemoveReceivingEntityCommand;
 import de.cubeside.orefarmstats.commands.SetReceivingEntityCommand;
 import de.cubeside.orefarmstats.commands.lottery.ClearLotteryStatsKeysCommand;
+import de.cubeside.orefarmstats.commands.lottery.DrawWinnerCommand;
 import de.cubeside.orefarmstats.commands.lottery.ListLotteryStatsKeysCommand;
 import de.cubeside.orefarmstats.commands.lottery.SetLotteryStatsKeysCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.AddToStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.CreateStatsDisplayCommand;
-import de.cubeside.orefarmstats.commands.lottery.DrawWinnerCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.ListStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.RemoveFromStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.RemoveStatsDisplayCommand;
@@ -25,7 +25,6 @@ import de.iani.cubesidestats.api.PositionAlgorithm;
 import de.iani.cubesidestats.api.StatisticKey;
 import de.iani.cubesidestats.api.TimeFrame;
 import de.iani.cubesideutils.bukkit.commands.CommandRouter;
-
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
@@ -39,7 +38,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
@@ -59,7 +57,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     private StatsDisplayManager statsDisplays;
 
-    private Entity receivingEntity;
+    private UUID receivingEntity;
 
     private final HashMap<String, KnownWorldOreLocations> previousLocations = new HashMap<>();
     private final HashMap<String, KnownWorldOreLocations> previousEventLocations = new HashMap<>();
@@ -488,8 +486,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         birthday2026CommunityIllagerKilledStatsKey.setDisplayName("Illager gemeinsam besiegt");
 
         veggieStatsKeysMap = new HashMap<>();
-        //veggieStatsKeysMap.put(Material.SUGAR_CANE, List.of(birthday2026PlayerSugarCaneStatsKey, birthday2026CommunitySugarCaneStatsKey));
-        //veggieStatsKeysMap.put(Material.WHEAT, List.of(birthday2026PlayerWheatStatsKey, birthday2026CommunityWheatStatsKey));
+        // veggieStatsKeysMap.put(Material.SUGAR_CANE, List.of(birthday2026PlayerSugarCaneStatsKey, birthday2026CommunitySugarCaneStatsKey));
+        // veggieStatsKeysMap.put(Material.WHEAT, List.of(birthday2026PlayerWheatStatsKey, birthday2026CommunityWheatStatsKey));
 
         halloweenMonsterKillingStatsKeysMap = new HashMap<>();
         halloweenMonsterKillingStatsKeysMap.put(EntityType.CREEPER, List.of(halloween2025PlayerCreeperKillingStatsKey, halloween2025CommunityCreeperKillingStatsKey));
@@ -506,25 +504,19 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             getServer().getScheduler().runTaskTimer(this, this::updateStatsSum, 60 * 20, 60 * 20);
         }
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                receivingEntity = getConfig().contains("receivingEntity") ? getServer().getEntity(UUID.fromString(getConfig().getString("receivingEntity"))) : null;
-                if (!getConfig().contains("receivingEntity") || receivingEntity != null) {
-                    this.cancel();
-                }
-            }
-        }.runTaskTimer(this, 5, 5);
+        receivingEntity = getConfig().contains("receivingEntity") ? UUID.fromString(getConfig().getString("receivingEntity")) : null;
 
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (!isNowInEvent())
+                if (!isNowInEvent()) {
                     return;
+                }
                 for (World world : getServer().getWorlds()) {
                     com.sk89q.worldguard.protection.managers.RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
-                    if (rm == null || !rm.hasRegion("kuchenschmaus"))
+                    if (rm == null || !rm.hasRegion("kuchenschmaus")) {
                         continue;
+                    }
                     Set<BlockVector> locations = getKnownWorldEatenCakeLocations(world).getLocations();
                     for (BlockVector location : locations) {
                         Location loc = new Location(world, location.getBlockX(), location.getBlockY(), location.getBlockZ());
@@ -538,29 +530,30 @@ public class OreFarmStatsPlugin extends JavaPlugin {
             }
         }.runTaskTimer(this, 6000L, 6000L);
 
-/*      // alte Monats .dat Dateien löschen
-        SimpleDateFormat formatter = new SimpleDateFormat("MM-yyyy");
-        for (File file : getDataFolder().listFiles()) {
-            if (file.isFile() && file.getName().indexOf("+MY") > -1) {
-                String fileName = file.getName();
-                fileName = fileName.substring(fileName.indexOf("+MY")+3);
-                fileName = fileName.substring(0, fileName.indexOf('.'));
-                try {
-                    Date date = formatter.parse(fileName);
-                    c.setTime(date);
-                    long fileDate = c.getTimeInMillis();
-                    c = Calendar.getInstance();
-                    long currentDate = c.getTimeInMillis();
-                    getLogger().log(Level.WARNING, "file: " + fileDate + ", current: " + currentDate);
-                    if (currentDate - fileDate > 7889400000L) { // 3 Monate alte löschen
-                        file.delete();
-                    }
-                } catch (ParseException ex) {
-
-                }
-            }
-        }
-*/
+        /*
+         * // alte Monats .dat Dateien löschen
+         * SimpleDateFormat formatter = new SimpleDateFormat("MM-yyyy");
+         * for (File file : getDataFolder().listFiles()) {
+         * if (file.isFile() && file.getName().indexOf("+MY") > -1) {
+         * String fileName = file.getName();
+         * fileName = fileName.substring(fileName.indexOf("+MY")+3);
+         * fileName = fileName.substring(0, fileName.indexOf('.'));
+         * try {
+         * Date date = formatter.parse(fileName);
+         * c.setTime(date);
+         * long fileDate = c.getTimeInMillis();
+         * c = Calendar.getInstance();
+         * long currentDate = c.getTimeInMillis();
+         * getLogger().log(Level.WARNING, "file: " + fileDate + ", current: " + currentDate);
+         * if (currentDate - fileDate > 7889400000L) { // 3 Monate alte löschen
+         * file.delete();
+         * }
+         * } catch (ParseException ex) {
+         *
+         * }
+         * }
+         * }
+         */
     }
 
     @Override
@@ -630,13 +623,13 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         return statsDisplays;
     }
 
-    public Entity getReceivingEntity() {
+    public UUID getReceivingEntity() {
         return this.receivingEntity;
     }
 
     public void setReceivingEntity(Entity entity) {
-        this.receivingEntity = entity;
-        getConfig().set("receivingEntity", entity != null ? entity.getUniqueId().toString() : null);
+        this.receivingEntity = entity == null ? null : entity.getUniqueId();
+        getConfig().set("receivingEntity", receivingEntity != null ? receivingEntity.toString() : null);
         saveConfig();
     }
 
