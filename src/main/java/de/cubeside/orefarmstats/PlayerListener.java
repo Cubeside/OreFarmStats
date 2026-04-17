@@ -114,7 +114,7 @@ public class PlayerListener implements Listener {
          * plugin.addGrassCut(e.getPlayer());
          * }
          * }
-         * 
+         *
          * if (plugin.isNowInEvent() && plugin.isVeggie(material, true)) {
          * if (e.getBlock().getBlockData() instanceof Ageable ageable) {
          * if (ageable.getAge() == ageable.getMaximumAge()) {
@@ -124,27 +124,27 @@ public class PlayerListener implements Listener {
          * plugin.addHerbstfestScore(e.getPlayer(), material, e.getBlock().getLocation());
          * }
          * }
-         * 
+         *
          * if (!plugin.isNowInEvent()) {
          * return;
          * }
-         * 
+         *
          * if (plugin.isHalloweenMiningMaterial(material) && plugin.isWorldLogged(e.getBlock().getWorld())) {
          * Location loc = e.getBlock().getLocation();
          * if (plugin.getKnownWorldEventOreLocations(loc.getWorld()).add(loc)) {
          * plugin.addHalloweenMiningScore(e.getPlayer());
          * }
          * }
-         * 
+         *
          * if (material == Material.NETHER_WART) {
          * if (e.getBlock().getBlockData() instanceof Ageable ageable) {
          * if (ageable.getAge() == ageable.getMaximumAge()) {
          * plugin.addHalloweenNetherwarzenScore(e.getPlayer(), e.getBlock().getLocation());
          * }
          * }
-         * 
+         *
          * }
-         * 
+         *
          * if (plugin.isHalloweenNetherbaumMaterial(material)) {
          * Location loc = e.getBlock().getLocation();
          * if (!plugin.getKnownWorldEventLogLocations(loc.getWorld()).remove(loc)) {
@@ -243,7 +243,7 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onFeedingLuma(PlayerInteractEntityEvent e) {
         if (!plugin.isNowInEvent()) {
-            if (e.getRightClicked().equals(plugin.getReceivingEntity())) {
+            if (e.getRightClicked().getUniqueId().equals(plugin.getReceivingEntity())) {
                 Audience.audience(e.getPlayer()).sendMessage(Component.text("Aktuell gibt es kein laufendes Event, wo du ein Item abgeben könntest.", NamedTextColor.GOLD));
             }
             return;
@@ -362,7 +362,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageEvent event) {
-        if (event.getEntity().equals(plugin.getReceivingEntity())) {
+        if (event.getEntity().getUniqueId().equals(plugin.getReceivingEntity())) {
             event.setCancelled(true);
         }
         if (!(event.getEntity() instanceof Player player)) {
