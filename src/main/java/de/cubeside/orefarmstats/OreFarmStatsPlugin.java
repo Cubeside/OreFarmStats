@@ -112,6 +112,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
 
     private long eventStartMillis;
     private long eventEndMillis;
+    private long kuchenNachspawnEventEndMillis;
+
     private StatisticKey eventSchweinereitenStatsKey;
     private StatisticKey eventMedalminingStatsKey;
     private StatisticKey eventGrasscutterStatsKey;
@@ -167,6 +169,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     private GlobalStatisticKey birthday2026CommunityWheatStatsKey;
     // private GlobalStatisticKey birthday2026CommunitySugarCaneStatsKey;
     private GlobalStatisticKey birthday2026CommunityIllagerKilledStatsKey;
+
 
     @Override
     public void onEnable() {
@@ -331,6 +334,8 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         eventStartMillis = c.getTimeInMillis();
         c.set(2026, Calendar.APRIL, 26, 19, 0, 0);
         eventEndMillis = c.getTimeInMillis();
+        c.set(2026, Calendar.MAY, 4, 0, 0, 0);
+        kuchenNachspawnEventEndMillis = c.getTimeInMillis();
 
         oreStatsKey = cubesideStatistics.getStatisticKey("farmstats.ore");
         oreStatsKey.setDisplayName("Erze gemint");
@@ -509,7 +514,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (!isNowInEvent()) {
+                if (!isNowInEvent() && !isNowInKuchenNachspawnEvent()) {
                     return;
                 }
                 for (World world : getServer().getWorlds()) {
@@ -800,6 +805,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     public boolean isNowInEvent() {
         long now = System.currentTimeMillis();
         return now >= eventStartMillis && now < eventEndMillis;
+    }
+
+    public boolean isNowInKuchenNachspawnEvent() {
+        long now = System.currentTimeMillis();
+        return now >= eventStartMillis && now < kuchenNachspawnEventEndMillis;
     }
 
     public boolean isOre(Material type) {

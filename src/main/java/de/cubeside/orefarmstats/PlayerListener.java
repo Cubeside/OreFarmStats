@@ -219,7 +219,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCakeEat(EntityChangeBlockEvent e) {
-        if (!plugin.isNowInEvent()) {
+        if (!plugin.isNowInEvent() && !plugin.isNowInKuchenNachspawnEvent()) {
             return;
         }
         if (e.getEntity() instanceof Player p) {
@@ -232,7 +232,9 @@ public class PlayerListener implements Listener {
                 return;
             }
             if (e.getTo() == Material.AIR || (e.getTo() == Material.CAKE && ((Cake) e.getBlockData()).getBites() > ((Cake) e.getBlock().getBlockData()).getBites())) {
-                plugin.addBirthdayCakeScore(p);
+                if (plugin.isNowInEvent()) {
+                    plugin.addBirthdayCakeScore(p);
+                }
                 if (e.getTo() == Material.AIR) {
                     plugin.getKnownWorldEatenCakeLocations(loc.getWorld()).add(loc);
                 }
