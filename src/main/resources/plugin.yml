@@ -4,7 +4,7 @@ api-version: 1.20
 version: 1.0.0
 main: de.cubeside.orefarmstats.OreFarmStatsPlugin
 depend: [CubesideStatistics]
-softdepend: [Multiverse-Core]
+softdepend: [Multiverse-Core, PlayerUUIDCache]
 commands:
   orefarmstats:
     aliases: [ofs]
@@ -14,3 +14,6 @@ permissions:
   orefarmstats.display.admin:
     description:
     default: op
+  orefarmstats.woodcutterstats:
+    description: Zeigt die monatliche Holzfäller-Statistik eines Spielers an
+    default: true

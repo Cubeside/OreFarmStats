@@ -80,7 +80,7 @@ public class PlayerListener implements Listener {
             if (!plugin.getKnownWorldLogLocations(loc.getWorld()).remove(loc)) {
                 ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
                 if (tool == null || tool.getEnchantmentLevel(Enchantment.EFFICIENCY) <= 5) {
-                    plugin.addLogFarmed(e.getPlayer());
+                    plugin.addLogFarmed(e.getPlayer(), material);
                 }
             }
         }

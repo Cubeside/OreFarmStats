@@ -4,6 +4,7 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import de.cubeside.orefarmstats.commands.RemoveReceivingEntityCommand;
 import de.cubeside.orefarmstats.commands.SetReceivingEntityCommand;
+import de.cubeside.orefarmstats.commands.WoodcutterStatsCommand;
 import de.cubeside.orefarmstats.commands.lottery.ClearLotteryStatsKeysCommand;
 import de.cubeside.orefarmstats.commands.lottery.DrawWinnerCommand;
 import de.cubeside.orefarmstats.commands.lottery.ListLotteryStatsKeysCommand;
@@ -15,6 +16,7 @@ import de.cubeside.orefarmstats.commands.statsDisplay.RemoveFromStatsDisplayComm
 import de.cubeside.orefarmstats.commands.statsDisplay.RemoveStatsDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.SetStatTextOnDisplayCommand;
 import de.cubeside.orefarmstats.commands.statsDisplay.SetStatsDisplayHeadlineCommand;
+import de.cubeside.orefarmstats.woodcutter.WoodcutterStatsManager;
 import de.iani.cubesidestats.api.CubesideStatisticsAPI;
 import de.iani.cubesidestats.api.GlobalStatisticKey;
 import de.iani.cubesidestats.api.GlobalStatistics;
@@ -56,6 +58,7 @@ import org.jetbrains.annotations.Nullable;
 public class OreFarmStatsPlugin extends JavaPlugin {
 
     private StatsDisplayManager statsDisplays;
+    private WoodcutterStatsManager woodcutterStats;
 
     private UUID receivingEntity;
 
@@ -175,6 +178,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
     public void onEnable() {
         cubesideStatistics = getServer().getServicesManager().load(CubesideStatisticsAPI.class);
         statsDisplays = new StatsDisplayManager(this, cubesideStatistics);
+        woodcutterStats = new WoodcutterStatsManager(cubesideStatistics);
 
         CommandRouter router = new CommandRouter(getCommand("orefarmstats"));
         router.addCommandMapping(new CreateStatsDisplayCommand(statsDisplays), "statsDisplay", "create");
@@ -190,6 +194,7 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         router.addCommandMapping(new ListLotteryStatsKeysCommand(this), "lottery", "listKeys");
         router.addCommandMapping(new SetReceivingEntityCommand(this), "setReceiveEntity");
         router.addCommandMapping(new RemoveReceivingEntityCommand(this), "removeReceiveEntity");
+        router.addCommandMapping(new WoodcutterStatsCommand(this, woodcutterStats), "woodcutterstats");
 
         deepOreMaterials.add(Material.DEEPSLATE_COAL_ORE);
         deepOreMaterials.add(Material.DEEPSLATE_COPPER_ORE);
@@ -907,10 +912,11 @@ public class OreFarmStatsPlugin extends JavaPlugin {
         playerStats.increaseScore(deepOreStatsKey, 1);
     }
 
-    public void addLogFarmed(Player p) {
+    public void addLogFarmed(Player p, Material material) {
         UUID playerId = p.getUniqueId();
         PlayerStatistics playerStats = cubesideStatistics.getStatistics(playerId);
         playerStats.increaseScore(logStatsKey, 1);
+        woodcutterStats.addLogFarmed(playerId, material);
     }
 
     public void addIceSnowMined(Player p) {
