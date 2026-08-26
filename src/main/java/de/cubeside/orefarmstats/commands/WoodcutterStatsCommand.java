@@ -93,7 +93,9 @@ public final class WoodcutterStatsCommand extends SubCommand {
         for (WoodType type : WoodType.values()) {
             message = message
                     .append(Component.newline())
-                    .append(Component.text(type.getDisplayName() + ": ", NamedTextColor.GOLD))
+                    .append(Component.translatable(type.getDisplayMaterial().translationKey())
+                            .color(NamedTextColor.GOLD))
+                    .append(Component.text(": ", NamedTextColor.GOLD))
                     .append(Component.text(snapshot.getCount(type), NamedTextColor.YELLOW));
         }
 
