@@ -2,12 +2,15 @@ package de.cubeside.orefarmstats.commands;
 
 import de.cubeside.orefarmstats.OreFarmStatsPlugin;
 import de.cubeside.orefarmstats.woodcutter.WoodType;
+import de.cubeside.orefarmstats.woodcutter.WoodcutterScoreCalculator;
 import de.cubeside.orefarmstats.woodcutter.WoodcutterStatsManager;
 import de.cubeside.orefarmstats.woodcutter.WoodcutterStatsSnapshot;
 import de.iani.cubesideutils.bukkit.commands.SubCommand;
 import de.iani.cubesideutils.commands.ArgsParser;
 import de.iani.playerUUIDCache.CachedPlayer;
 import de.iani.playerUUIDCache.PlayerUUIDCacheAPI;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -25,6 +28,7 @@ import org.bukkit.entity.Player;
 
 public final class WoodcutterStatsCommand extends SubCommand {
     private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.GERMAN);
+    private static final DecimalFormat SCORE_NUMBER_FORMAT = new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.GERMANY));
 
     private final OreFarmStatsPlugin plugin;
     private final WoodcutterStatsManager statsManager;
@@ -91,12 +95,17 @@ public final class WoodcutterStatsCommand extends SubCommand {
                 Style.style(NamedTextColor.DARK_GREEN, TextDecoration.UNDERLINED)));
 
         for (WoodType type : WoodType.values()) {
+            int count = snapshot.getCount(type);
+            double score = WoodcutterScoreCalculator.calculateForSingleType(count);
             message = message
                     .append(Component.newline())
                     .append(Component.translatable(type.getDisplayMaterial().translationKey())
                             .color(NamedTextColor.GOLD))
                     .append(Component.text(": ", NamedTextColor.GOLD))
-                    .append(Component.text(snapshot.getCount(type), NamedTextColor.YELLOW));
+                    .append(Component.text(count, NamedTextColor.YELLOW))
+                    .append(Component.text(" (", NamedTextColor.GRAY))
+                    .append(Component.text(SCORE_NUMBER_FORMAT.format(score) + " Punkte", NamedTextColor.GRAY))
+                    .append(Component.text(")", NamedTextColor.GRAY));
         }
 
         message = message

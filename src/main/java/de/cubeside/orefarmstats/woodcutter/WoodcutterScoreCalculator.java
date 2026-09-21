@@ -11,9 +11,13 @@ public final class WoodcutterScoreCalculator {
         for (WoodType type : WoodType.values()) {
             Integer count = counts.get(type);
             if (count != null && count > 0) {
-                sum += Math.sqrt(count);
+                sum += calculateForSingleType(count);
             }
         }
         return (int) Math.floor(sum);
+    }
+
+    public static double calculateForSingleType(int count) {
+        return Math.sqrt(count);
     }
 }
